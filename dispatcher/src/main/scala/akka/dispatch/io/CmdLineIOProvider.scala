@@ -56,7 +56,7 @@ class CmdLineProcessorActor extends Actor {
       }
 
     case response: QueryResponse =>
-      println("Received response: " + response)
+      println("IOProvider received response: " + response)
       self ! GetInput // get next user input once the response is received
 
     case _ => println("Undefined message sent to the CmdLineProcessorActor")

@@ -12,6 +12,7 @@ import akka.io.Tcp.{apply => _, _}
 import akka.pattern.{PromiseActorRef, ask}
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
+import pct.PCTActor
 import time.{MockTime, TimerActor}
 import protocol.{Event, _}
 import util.{CmdLineUtils, FileUtils, ReflectionUtils}
@@ -141,7 +142,7 @@ object PCTDispatcher {
   var helperActor: Option[ActorRef] = None
   var timerActor: Option[ActorRef] = None
 
-  val askTimeOutMsec: Int = 5000 // used when the internal state of an actor is asked
+  var pctActor: Option[ActorRef] = None
 
   /**
     * Enables dispatcher to deliver messages to the actors
@@ -170,7 +171,10 @@ object PCTDispatcher {
         val timer = system.actorOf(Props(new TimerActor(timeStep)), "Timer")
         timerActor = Some(timer)
         timer ! AdvanceTime
-        ioProvider.setUp(system) // if ioProvider is network, start the server etc.
+        ioProvider.setUp(system)
+
+        pctActor = Some(system.actorOf(PCTActor.props, "PCTActor"))
+
       case _ => // do nth
     }
   }
@@ -273,10 +277,9 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     executorService execute new Runnable() {
       override def run(): Unit = {
         ProgramEvents.addEvent(event)
-        actorMessagesMap.getActor(actor.path.toString) match {
-          case Some(a) => ioProvider.putResponse(ActionResponse(ProgramEvents.consumeEvents))
-          case None => ioProvider.putResponse(ActionResponse(ProgramEvents.consumeEvents))
-        }
+        val response = ActionResponse(ProgramEvents.consumeEvents)
+        ioProvider.putResponse(response)
+        sendToPCTActor(response)
       }
     }
   }
@@ -303,6 +306,11 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     executorService execute r
   }
 
+  private def sendToPCTActor(response: ActionResponse) = pctActor match {
+    case Some(actor) => actor ! response
+    case None => CmdLineUtils.printlnForLogging("PCTActor is not created")
+  }
+
   /**
     * Overriden to intercept and keep the dispatched messages
     *
@@ -319,17 +327,23 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         msg match {
         case DispatchToActor(actor) =>
           runOnExecutor(toRunnable(() => {
-            ioProvider.putResponse(handleDispatchToActor(actor))
+            val response = handleDispatchToActor(actor)
+            ioProvider.putResponse(response)
+            sendToPCTActor(response)
           }))
           return
         case DropActorMsg(actor) =>
           runOnExecutor(toRunnable(() => {
-            ioProvider.putResponse(handleDropActorMsg(actor))
+            val response = handleDropActorMsg(actor)
+            ioProvider.putResponse(response)
+            sendToPCTActor(response)
           }))
           return
         case InitDispatcher =>
           runOnExecutor(toRunnable(() => {
-            ioProvider.putResponse(handleInitiate())
+            val response = handleInitiate()
+            ioProvider.putResponse(response)
+            sendToPCTActor(response)
           }))
           return
         case EndDispatcher =>
