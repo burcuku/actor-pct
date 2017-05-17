@@ -82,6 +82,19 @@ object PCTDispatcher {
   /**
     * Called when the user requests to dispatch the next message to a given actor
     *
+    * @param receiverId id of the receiver actor
+    * @param senderId id of the sender actor
+    * @param message the message payload
+    */
+  def dispatchMessage(receiverId: String, senderId: String, message: Any): Unit = {
+    actorMessagesMap.getMessage(receiverId, senderId, message)
+    actorMessagesMap.removeMessage(receiverId, senderId, message)
+    //sendToDispatcher(DispatchToActor(actor))
+  }
+
+  /**
+    * Called when the user requests to dispatch the next message to a given actor
+    *
     * @param actorId actor name which receives the next message
     */
   def dispatchToActor(actorId: String): Unit = {
@@ -233,7 +246,6 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     println(Thread.currentThread().getName)
     ActionResponse(ProgramEvents.consumeEvents)
   }
-
   private def handleTerminate: Any = actorSystem match {
     case Some(system) => system.terminate
     case None => printDispatcherLog(Events.LOG_WARNING, "Cannot terminate")
@@ -242,7 +254,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
   def handleDispatchToActor(actor: Cell): ActionResponse = {
     actorMessagesMap.removeHeadMessage(actor) match {
       case Some(envelope) =>
-        ProgramEvents.addEvent(MessageReceived(actor.self.path.toString, envelope.sender.path.toString, envelope.message.toString))
+        ProgramEvents.addEvent(MessageReceived(actor.self.path.toString, envelope.sender.path.toString, envelope.message))
         // handle the actor message synchronously
         val receiver = actor.asInstanceOf[ActorCell]
         val mbox = receiver.mailbox
@@ -260,7 +272,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     actorMessagesMap.removeHeadMessage(actor) match {
       case Some(envelope) =>
         println("Removed head message from: " + actor.self.path + " msg: " + envelope)
-        ProgramEvents.addEvent(MessageDropped(actor.self.path.toString, envelope.sender.path.toString, envelope.message.toString))
+        ProgramEvents.addEvent(MessageDropped(actor.self.path.toString, envelope.sender.path.toString, envelope.message))
         ActionResponse(ProgramEvents.consumeEvents)
 
       case None =>
@@ -411,7 +423,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     CmdLineUtils.printlnForLogging("Intercepting msg to: " + receiver.self + " " + invocation + " " + Thread.currentThread().getName)
 
     // Add the intercepted message into the list of output events
-    ProgramEvents.addEvent(MessageSent(receiver.self.path.toString, invocation.sender.path.toString(), invocation.message.toString))
+    ProgramEvents.addEvent(MessageSent(receiver.self.path.toString, invocation.sender.path.toString(), invocation.message))
 
     // Add the intercepted message into intercepted messages map
     actorMessagesMap.addMessage(receiver, invocation)

@@ -1,16 +1,18 @@
 package protocol
 
+import akka.dispatch.Envelope
+
 sealed abstract class Event
 
 case class ActorCreated(actorId: String) extends Event
 
 case class ActorDestroyed(actorId: String) extends Event
 
-case class MessageSent(receiverId: String, senderId: String, msg: String) extends Event
+case class MessageSent(receiverId: String, senderId: String, msg: Any) extends Event
 
-case class MessageReceived(receiverId: String, senderId: String, msg: String) extends Event
+case class MessageReceived(receiverId: String, senderId: String, msg: Any) extends Event
 
-case class MessageDropped(receiverId: String, senderId: String, msg: String) extends Event
+case class MessageDropped(receiverId: String, senderId: String, msg: Any) extends Event
 
 case class Log(logType: Int, text: String) extends Event
 

@@ -44,7 +44,38 @@ class ActorMessagesMap {
   def getAllActors: Set[Cell] = {
     actorMessages.keySet
   }
-  
+
+  def getMessage(receiverId: String, senderId: String, message: Any): Option[Envelope] = getActor(receiverId) match {
+    case Some(receiver) => getMessage(receiver, senderId, message)
+    case None => throw new Exception("ActorMessagesMap - No such receiver actor")
+  }
+
+  def getMessage(receiver: Cell, senderId: String, message: Any): Option[Envelope] = {
+    def getMessage(list: List[Envelope]): Option[Envelope] = list match {
+      case x :: xs if x.sender.path.toString.equals(senderId) && x.message.equals(message) => Some(x)
+      case x :: xs => getMessage(xs)
+      case Nil => None
+    }
+    getMessage(actorMessages(receiver))
+  }
+
+  def removeMessage(receiverId: String, senderId: String, message: Any): Option[Envelope] = getActor(receiverId) match {
+    case Some(receiver) => removeMessage(receiver, senderId, message)
+    case None => throw new Exception("ActorMessagesMap - No such receiver actor")
+  }
+
+  def removeMessage(receiver: Cell, senderId: String, message: Any): Option[Envelope] = {
+    def removeMessage(list: List[Envelope], acc: List[Envelope]): (Option[Envelope], List[Envelope]) = list match {
+      case x :: xs if x.sender.path.toString.equals(senderId) && x.message.equals(message) => (Some(x), acc ++ xs)
+      case x :: xs => removeMessage(xs, acc :+ x)
+      case Nil => (None, acc)
+    }
+
+    val (envelope, newList) = removeMessage(actorMessages(receiver), Nil)
+    actorMessages += (receiver -> newList)
+    envelope
+  }
+
   def addActor(actor: Cell): Any = {
     actorMessages.get(actor) match {
       case None => actorMessages += (actor -> List() )
@@ -71,7 +102,6 @@ class ActorMessagesMap {
 
   /**
     * @return true if there are no actors or the message lists of all actors are empty
-    *         except for the log1-Logging$DefaultLogger actor (no logic processing messages)
     */
   def isAllEmptyExceptLogger: Boolean = {
     def check(keys: Iterable[Cell]): Boolean = {
