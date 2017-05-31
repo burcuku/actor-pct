@@ -23,5 +23,5 @@ object Messages {
 
   def isBefore(id: MessageId, other: MessageId): Boolean = allPreds(other).contains(id)
 
-  def isEnabled(msg: Message): Boolean = !msg.received && allPreds(msg.id).map(id => idsToMsgs(id)).forall(_.received)
+  def isEnabled(msg: Message): Boolean = !msg.received && msg.preds.map(id => idsToMsgs(id)).forall(_.received)
 }
