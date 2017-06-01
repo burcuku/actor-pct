@@ -1,9 +1,9 @@
 package akka.dispatch
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, Props}
 
 object DispatcherUtils {
-  val debuggerConfigFile: String = "dispatcher.conf"
+  val dispatcherConfigFile: String = "dispatcher.conf"
 
   private val systemActorPaths = Set("", "user", "system")
   private val pctActorNames = Set("DispatcherHelperActor", "PCTActor")

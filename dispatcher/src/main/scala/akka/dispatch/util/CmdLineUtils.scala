@@ -1,6 +1,9 @@
 package akka.dispatch.util
 
+import akka.actor.Props
 import akka.dispatch.DispatcherUtils
+import akka.dispatch.PCTDispatcher.timerActor
+import akka.dispatch.time.TimerActor
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.immutable.List
@@ -8,7 +11,7 @@ import scala.collection.immutable.List
 object CmdLineUtils {
 
   def parseInput(range: Range = Range(Int.MinValue, Int.MaxValue), allowedStrs: List[String] = List()): (String, Option[Int]) = {
-    val line = Console.readLine().split(" ")
+    val line = Console.in.readLine().split(" ")
 
     if (line.isEmpty || !allowedStrs.contains(line(0))) {
       println("Wrong input, try again. ")
@@ -29,28 +32,21 @@ object CmdLineUtils {
     }
   }
 
-  val logging: Boolean = try {
-    ConfigFactory.load(DispatcherUtils.debuggerConfigFile).getBoolean("dispatcher.dispatcherLogs")
+  private val logLevel: Int = try {
+    ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getInt("pct-dispatcher.logLevel")
   } catch {
-    case e: Exception => true // logging is on by default
+    case e: Exception => 1
   }
 
-  //todo organize
-  def printlnForInfo(s: Any): Unit = {
-    println(Console.GREEN + s + Console.RESET)
+  def printLog(logType: Int, s: String): Unit = logType match {
+    case LOG_DEBUG if logLevel <= LOG_DEBUG => println(s)
+    case LOG_INFO if logLevel <= LOG_INFO => println(s)
+    case LOG_WARNING if logLevel <= LOG_WARNING => println(Console.CYAN + s + Console.RESET)
+    case LOG_ERROR if logLevel <= LOG_ERROR => println(Console.RED + s + Console.RESET)
+    case _ => // do nth
   }
 
-  def printlnForLogging(s: Any): Unit = {
-    if(logging) println(Console.CYAN + s + Console.RESET)
-  }
-
-  def printlnForWELogging(s: Any): Unit = {
-    println(Console.MAGENTA + s + Console.RESET)
-  }
-
-  def printlnForUiInput(s: Any): Unit = {
-    println(Console.BLUE + s + Console.RESET)
-  }
+  def printlnForUiInput(s:String): Unit = println(Console.BLUE + s + Console.RESET)
 
   /**
     * Fancy printing of a map
@@ -64,4 +60,9 @@ object CmdLineUtils {
   def printListOfMap[Key, ListElement] (l: List[(Key, List[ListElement])], printFunc: (Any => Unit) = println): Unit = {
     ((1 to l.size) zip l).foreach(a => printFunc(a._1 + "  " + a._2._1 + "\n" + a._2._2)) //the main thread adds msg here
   }
+
+  val LOG_DEBUG = 0
+  val LOG_INFO = 1
+  val LOG_WARNING = 2
+  val LOG_ERROR = 3
 }

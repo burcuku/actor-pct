@@ -32,10 +32,10 @@ class CmdLineProcessorActor extends Actor {
       CmdLineUtils.printListOfMap(actorMsgs)
 
       CmdLineUtils.printlnForUiInput("Please enter the next command: \"start\" OR \"quit\" OR " +
-        "  \"next <index>\" to dispatch the next message of an actor OR" +
-        "  \"drop <index>\" to drop the next message of an actor")
+        " \"next <index>\" to dispatch the next message of an actor OR" +
+        " \"drop <index>\" to drop the next message of an actor")
 
-      val choice = CmdLineUtils.parseInput(Range(0, actorMsgs.size), List("start", "next", "drop", "quit"))
+      val choice = CmdLineUtils.parseInput(1 to actorMsgs.size, List("start", "next", "drop", "quit"))
 
       choice match {
         case ("start", _) =>
@@ -56,7 +56,7 @@ class CmdLineProcessorActor extends Actor {
       }
 
     case response: QueryResponse =>
-      println("IOProvider received response: " + response)
+      //println("IOProvider received response: " + response)
       self ! GetInput // get next user input once the response is received
 
     case _ => println("Undefined message sent to the CmdLineProcessorActor")

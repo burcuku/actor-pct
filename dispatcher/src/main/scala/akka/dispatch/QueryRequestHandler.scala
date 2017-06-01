@@ -13,23 +13,23 @@ object QueryRequestHandler {
   def handleRequest(request: QueryRequest): Unit = request match {
 
     case ActionRequest(actionType, receiverId) if actionType.equalsIgnoreCase(QueryRequests.ACTION_INIT) => // Start Request
-      CmdLineUtils.printlnForLogging("===== Sending initial list of events..")
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "===== Sending initial list of events..")
       PCTDispatcher.initiateDispatcher()
 
     case ActionRequest(actionType, receiverId) if actionType.equalsIgnoreCase(QueryRequests.ACTION_END) => // Terminate Request
-      CmdLineUtils.printlnForLogging("===== Requested to terminate: ")
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "===== Requested to terminate: ")
       PCTDispatcher.terminateDispatcher()
 
     case ActionRequest(actionType, receiverId) if actionType.equalsIgnoreCase(QueryRequests.ACTION_DROP) => // Next Actor in the Replayed Trace
-      CmdLineUtils.printlnForLogging("===== Requested next actor: ")
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "===== Requested next actor: ")
       PCTDispatcher.dropActorMsg(receiverId)
 
     case ActionRequest(actionType, receiverId) if actionType.equalsIgnoreCase(QueryRequests.ACTION_NEXT) && receiverId.equals("")=> // Next Actor in the Replayed Trace
-      CmdLineUtils.printlnForLogging("===== Requested next actor: ")
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "===== Requested next actor: ")
       PCTDispatcher.dispatchToNextActor()
 
     case ActionRequest(actionType, receiverId) if actionType.equalsIgnoreCase(QueryRequests.ACTION_NEXT) =>
-      CmdLineUtils.printlnForLogging("===== Selected next actor: " + receiverId)
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "===== Selected next actor: " + receiverId)
       PCTDispatcher.dispatchToActor(receiverId)
 
     case _ => System.err.println("Unidentified request")

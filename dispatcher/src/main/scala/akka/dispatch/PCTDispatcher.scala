@@ -3,23 +3,20 @@ package akka.dispatch
 import java.util.concurrent._
 
 import akka.actor.{Actor, ActorCell, ActorInitializationException, ActorRef, ActorSystem, Cell, InternalActorRef, Props}
-import akka.dispatch.io._
+import akka.dispatch.io.{CmdLineIOProvider, IOProvider}
 import akka.dispatch.time.TimerActor.AdvanceTime
 import akka.dispatch.sysmsg.{NoMessage, _}
 import akka.event.Logging._
 import akka.io.Tcp
 import akka.io.Tcp.{apply => _, _}
-import akka.pattern.{PromiseActorRef, ask}
-import akka.util.Timeout
+import akka.pattern.PromiseActorRef
 import com.typesafe.config.{Config, ConfigFactory}
 import pct.PCTActor
-import time.{MockTime, TimerActor}
+import time.TimerActor
 import protocol.{Event, _}
 import util.{CmdLineUtils, FileUtils, ReflectionUtils}
 import util.FunUtils._
 
-import scala.collection.mutable.{Set => MSet}
-import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
@@ -53,11 +50,6 @@ private case object DispatchToNextActor extends DispatcherMsg
   * To handle DropMsgRequest to drop the message at the head of the actor msg list
   */
 private case class DropActorMsg(actor: Cell) extends DispatcherMsg
-
-/**
-  * For sending log messages to the dispatcher generated while reading a user Request
-  */
-private case class LogMsg(logType: Int, text: String) extends DispatcherMsg
 
 object PCTDispatcher {
   /**
@@ -103,7 +95,7 @@ object PCTDispatcher {
       case Some(a) => dispatchToActor(a)
       case None =>
         println(listOfActorsByRef)
-        printDispatcherLog(Events.LOG_WARNING, "Cannot dispatch to actor: " + actorId + " No such actor.")
+        printLog(CmdLineUtils.LOG_WARNING, "Cannot dispatch to actor: " + actorId + " No such actor.")
     }
   }
 
@@ -133,7 +125,7 @@ object PCTDispatcher {
     val actor = actorMessagesMap.getActor(actorId)
     actor match {
       case Some(a) => dropActorMsg(a)
-      case None => printDispatcherLog(Events.LOG_WARNING, "Cannot drop msg from the actor: " + actorId + " No such actor.")
+      case None => printLog(CmdLineUtils.LOG_WARNING, "Cannot drop msg from the actor: " + actorId + " No such actor.")
     }
   }
 
@@ -172,20 +164,30 @@ object PCTDispatcher {
         }), "DispatcherHelperActor"))
 
         // read the virtual time step config and create TimerActor
-        var timeStep: FiniteDuration =
+        var timeStep: FiniteDuration = FiniteDuration(1, TimeUnit.MILLISECONDS)
+
+        // create TimerActor only if the user uses virtual time (e.g. scheduler.schedule methods) in his program
+        val useTimer: Boolean = try {
+          ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getBoolean("pct-dispatcher.useVirtualTimer")
+        } catch {
+          case e: Exception =>
+            true
+        }
+
+        if(useTimer) {
+          val timer = system.actorOf(Props(new TimerActor(timeStep)), "Timer")
+          timerActor = Some(timer)
+
           try {
-            FiniteDuration(ConfigFactory.load(DispatcherUtils.debuggerConfigFile).getDuration("pct-dispatcher.timestep", TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
+            FiniteDuration(ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getDuration("pct-dispatcher.timestep", TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
           } catch {
             case e: Exception =>
-              println(e + "\n No valid timestep duration provided in configuration file. Using default timestep 1 MILLISECONDS")
-              FiniteDuration(1, TimeUnit.MILLISECONDS)
+              printLog(CmdLineUtils.LOG_WARNING, "No valid timestep duration provided in configuration file. Using default timestep 1 MILLISECONDS")
           }
+          timer ! AdvanceTime
+        }
 
-        val timer = system.actorOf(Props(new TimerActor(timeStep)), "Timer")
-        timerActor = Some(timer)
-        timer ! AdvanceTime
         ioProvider.setUp(system)
-
         pctActor = Some(system.actorOf(PCTActor.props, "PCTActor"))
 
       case _ => // do nth
@@ -194,13 +196,10 @@ object PCTDispatcher {
 
   def sendToDispatcher(msg: Any): Unit = helperActor match {
     case Some(actor) => actor ! msg
-    case None => printDispatcherLog(Events.LOG_WARNING, "Cannot send to the dispatcher, no helper actor is created")
+    case None => printLog(CmdLineUtils.LOG_WARNING, "Cannot send to the dispatcher, no helper actor is created")
   }
 
-  def printDispatcherLog(logType: Int, text: String): Unit = logType match {
-    case Events.LOG_WARNING | Events.LOG_ERROR => CmdLineUtils.printlnForWELogging(text)
-    case _ => CmdLineUtils.printlnForLogging(text)
-  }
+  def printLog(logType: Int, text: String): Unit = CmdLineUtils.printLog(logType, text)
 
   //def getActorMessages: List[(Cell, List[Envelope])] = actorMessagesMap.toList.sortBy(_._1.self.toString())
 
@@ -248,13 +247,13 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
   }
   private def handleTerminate: Any = actorSystem match {
     case Some(system) => system.terminate
-    case None => printDispatcherLog(Events.LOG_WARNING, "Cannot terminate")
+    case None => printLog(CmdLineUtils.LOG_WARNING,  "Cannot terminate")
   }
 
   def handleDispatchToActor(actor: Cell): ActionResponse = {
     actorMessagesMap.removeHeadMessage(actor) match {
       case Some(envelope) =>
-        ProgramEvents.addEvent(MessageReceived(actor.self.path.toString, envelope.sender.path.toString, envelope.message))
+        ProgramEvents.addEvent(MessageReceived(actor.self, envelope))
         // handle the actor message synchronously
         val receiver = actor.asInstanceOf[ActorCell]
         val mbox = receiver.mailbox
@@ -263,8 +262,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         ActionResponse(ProgramEvents.consumeEvents)
 
       case None =>
-        printDispatcherLog(Events.LOG_WARNING, "Dispatch from an actor with no messages.")
-        ActionResponse(List(Log(Events.LOG_WARNING, "Dispatch from an actor with no messages.")))
+        printLog(CmdLineUtils.LOG_WARNING, "Dispatch from an actor with no messages.")
+        ActionResponse(List())
     }
   }
 
@@ -272,27 +271,12 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     actorMessagesMap.removeHeadMessage(actor) match {
       case Some(envelope) =>
         println("Removed head message from: " + actor.self.path + " msg: " + envelope)
-        ProgramEvents.addEvent(MessageDropped(actor.self.path.toString, envelope.sender.path.toString, envelope.message))
+        ProgramEvents.addEvent(MessageDropped(actor.self, envelope))
         ActionResponse(ProgramEvents.consumeEvents)
 
       case None =>
-        printDispatcherLog(Events.LOG_WARNING, "Msg drop from an actor with no messages.")
-        ActionResponse(List(Log(Events.LOG_WARNING, "Msg drop from an actor with no messages.")))
-    }
-  }
-
-  /**
-    * Called when an actor has crashed
-    */
-  def sendErrResponse(event: Log, actor: ActorRef): Unit = {
-    // run on the dispatcher thread async
-    executorService execute new Runnable() {
-      override def run(): Unit = {
-        ProgramEvents.addEvent(event)
-        val response = ActionResponse(ProgramEvents.consumeEvents)
-        ioProvider.putResponse(response)
-        sendToPCTActor(response)
-      }
+        printLog(CmdLineUtils.LOG_WARNING, "Msg drop from an actor with no messages.")
+        ActionResponse(List())
     }
   }
 
@@ -301,13 +285,13 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       ReflectionUtils.callPrivateMethod(mbox, "processAllSystemMessages")()
       ReflectionUtils.callPrivateMethod(mbox, "processMailbox")(1, 0L)
     } else {
-      CmdLineUtils.printlnForWELogging("Mailbox does not have any messages: " + mbox.messageQueue.numberOfMessages + "   " + mbox.messageQueue.toString)
+      printLog(CmdLineUtils.LOG_ERROR, "Mailbox does not have any messages: " + mbox.messageQueue.numberOfMessages + "   " + mbox.messageQueue.toString)
     }
   }
 
   private def checkAndWaitForActorBehavior(actor: ActorCell): Unit = {
     if(ReflectionUtils.readPrivateVal(actor, "behaviorStack").asInstanceOf[List[Actor.Receive]] == List.empty) {
-      CmdLineUtils.printlnForLogging("Actor behavior is not set. Cannot process mailbox. Trying again..")
+      printLog(CmdLineUtils.LOG_DEBUG, "Actor behavior is not set. Cannot process mailbox. Trying again..")
       // We use blocking wait since the ? pattern is run synchronously
       // and the thread dispatching the messages are blocked until this mailbox is processed
       Thread.sleep(500)
@@ -320,7 +304,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
 
   private def sendToPCTActor(response: ActionResponse) = pctActor match {
     case Some(actor) => actor ! response
-    case None => CmdLineUtils.printlnForLogging("PCTActor is not created")
+    case None => printLog(CmdLineUtils.LOG_WARNING, "PCTActor is not created")
   }
 
   /**
@@ -370,7 +354,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
            | Envelope(Warning(_, _, _), _)
            | Envelope(Info(_, _, _), _)
            | Envelope(Debug(_, _, _), _) =>
-        CmdLineUtils.printlnForLogging("Log msg is delivered. Running synchronously. " + receiver.self + " " + invocation)
+        printLog(CmdLineUtils.LOG_DEBUG, "Log msg is delivered. Running synchronously. " + receiver.self + " " + invocation)
         val mbox = receiver.mailbox
         mbox.enqueue(receiver.self, invocation)
         //registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
@@ -401,7 +385,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case _ =>
         // if the message is sent by the Ask Pattern:
         if (invocation.sender.isInstanceOf[PromiseActorRef]) {
-          CmdLineUtils.printlnForLogging("-- Message by AskPattern. Sending for execution. " + receiver.self + " " + invocation)
+          printLog(CmdLineUtils.LOG_DEBUG, "-- Message by AskPattern. Sending for execution. " + receiver.self + " " + invocation)
           checkAndWaitForActorBehavior(receiver)
           val mbox = receiver.mailbox
           mbox.enqueue(receiver.self, invocation)
@@ -409,8 +393,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
           // (It gets blocked since the only thread in the thread pool is possibly waiting on a future)
           // In case of ?, the msg is synchronously executed in the dispatcher thread
 
-          // what if the handler of this thread waits as well?
-          // Sln: Run each on a fresh thread..
+          // (NOTE: Message handlers in Akka should not have synchronized blocks by design)
           val t = new Thread(toRunnable(() => processMailbox(mbox)))
           t.start()
           t.join(10000)
@@ -420,10 +403,10 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       // Go with the default execution, intercept and record the message
     }
 
-    CmdLineUtils.printlnForLogging("Intercepting msg to: " + receiver.self + " " + invocation + " " + Thread.currentThread().getName)
+    printLog(CmdLineUtils.LOG_INFO, "Intercepting msg to: " + receiver.self + " " + invocation + " " + Thread.currentThread().getName)
 
     // Add the intercepted message into the list of output events
-    ProgramEvents.addEvent(MessageSent(receiver.self.path.toString, invocation.sender.path.toString(), invocation.message))
+    ProgramEvents.addEvent(MessageSent(receiver.self, invocation))
 
     // Add the intercepted message into intercepted messages map
     actorMessagesMap.addMessage(receiver, invocation)
@@ -440,7 +423,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * @param invocation the dispatched system message
     */
   override def systemDispatch(receiver: ActorCell, invocation: SystemMessage): Unit = {
-    CmdLineUtils.printlnForLogging("Delivered system msg: " + invocation + "   Actor: " + receiver.self)
+    printLog(CmdLineUtils.LOG_INFO, "Delivered system msg: " + invocation + "   Actor: " + receiver.self)
 
     // run the updates on the thread pool thread
     executorService execute updateActorMapWithSystemMessage(receiver, invocation)
@@ -457,21 +440,21 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       * IMPORTANT: Run here before registerForExecution so that actorMessagesMap is updated before terminated actor is deleted
       */
     invocation match {
-      case Create(failure: Option[ActorInitializationException]) => CmdLineUtils.printlnForLogging("Handling system msg: Create by failure: " + failure)
-      case Recreate(cause: Throwable) => CmdLineUtils.printlnForLogging("Handling system msg: Recreate by cause: " + cause)
-      case Suspend() => CmdLineUtils.printlnForLogging("Handling system msg: Suspend")
-      case Resume(causedByFailure: Throwable) => CmdLineUtils.printlnForLogging("Handling system msg: Resume by failure: " + causedByFailure)
+      case Create(failure: Option[ActorInitializationException]) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Create by failure: " + failure)
+      case Recreate(cause: Throwable) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Recreate by cause: " + cause)
+      case Suspend() => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Suspend")
+      case Resume(causedByFailure: Throwable) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Resume by failure: " + causedByFailure)
       case Terminate() =>
-        CmdLineUtils.printlnForLogging("Handling system msg terminates: " + receiver.self)
+        CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "Handling system msg terminates: " + receiver.self)
         // add to the event list only if it is not a system actor
         if (!DispatcherUtils.isSystemActor(receiver.self)) {
-          ProgramEvents.addEvent(ActorDestroyed(receiver.self.path.toString))
+          ProgramEvents.addEvent(ActorDestroyed(receiver.self))
           actorMessagesMap.removeActor(receiver)
         }
-      case Supervise(child: ActorRef, async: Boolean) => CmdLineUtils.printlnForLogging("Handling system msg: Supervise. Child: " + child)
-      case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => CmdLineUtils.printlnForLogging("Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
-      case Unwatch(watchee: ActorRef, watcher: ActorRef) => CmdLineUtils.printlnForLogging("Handling system msg: Unwatch. Watchee: " + watchee + " Watcher: " + watcher)
-      case NoMessage => CmdLineUtils.printlnForLogging("Handling system msg: NoMessage")
+      case Supervise(child: ActorRef, async: Boolean) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Supervise. Child: " + child)
+      case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
+      case Unwatch(watchee: ActorRef, watcher: ActorRef) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Unwatch. Watchee: " + watchee + " Watcher: " + watcher)
+      case NoMessage => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: NoMessage")
       case _ => // do not track the other system messages for now
     }
   })
@@ -480,11 +463,11 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * Overriden to add the actors with the created mailbox into the ActorMap
     */
   override def createMailbox(actor: akka.actor.Cell, mailboxType: MailboxType): Mailbox = {
-    CmdLineUtils.printlnForLogging("Created mailbox for: " + actor.self + " in thread: " + Thread.currentThread().getName)
+    printLog(CmdLineUtils.LOG_INFO, "Created mailbox for: " + actor.self + " in thread: " + Thread.currentThread().getName)
 
     // add to the event list only if it is not a system actor
     if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ ) {
-      ProgramEvents.addEvent(ActorCreated(actor.self.path.toString))
+      ProgramEvents.addEvent(ActorCreated(actor.self))
       actorMessagesMap.addActor(actor)
     }
 
@@ -495,7 +478,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * Overriden to output the recorded events
     */
   override def shutdown: Unit = {
-    CmdLineUtils.printlnForLogging("Shutting down.. ")
+    printLog(CmdLineUtils.LOG_INFO, "Shutting down.. ")
 
     FileUtils.printToFile("allEvents") { p =>
       ProgramEvents.getAllEvents.foreach(p.println)
