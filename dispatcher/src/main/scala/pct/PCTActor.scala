@@ -1,18 +1,22 @@
 package pct
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.PCTDispatcher
-import protocol.{ActionResponse, Event}
+import protocol._
 
 class PCTActor extends Actor {
-  //todo fill in the class
 
   override def receive: Receive = {
-    case response: ActionResponse =>  println("PCTActor received: " + response.events)
-  }
+    // The actor receives the created messages and their predecessors at each step of the computation
+    // (i.e. after the program initialization and after a message is processed by an actor)
+    case MessagePredecessors(predecessors: Map[MessageId, Set[MessageId]]) =>
+      println("PCTActor received predecessors: ")
+      predecessors.foreach(m => println("Message " + m._1 + " has predecessors -> " + m._2))
 
-  // Note: To deliver message to the selected actor with actorId "actorId", call:
-  // PCTDispatcher.dispatchToActor(actorId) // asynchronously commands the Dispatcher to dispatch to this actor
+      // todo Update chains with the new messages
+      // Select a message using the PCT algorithm
+      // Forward dispatch request to the PCTDispatcher:
+      // RequestForwarder.forwardRequest(DispatchMessageRequest(selectedMessageId))
+  }
 }
 
 object PCTActor {
