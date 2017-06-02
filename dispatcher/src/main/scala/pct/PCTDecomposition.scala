@@ -1,125 +1,122 @@
 package pct
 
-import scala.collection.mutable.{ListBuffer, Map}
+import scala.collection.mutable
 import scala.util.Random
+import scala.annotation.tailrec
 
-/*
 class PCTDecomposition(options: PCTOptions) {
-  val chains: ListBuffer[Chain] = ListBuffer()
-  private val tempChains: ListBuffer[Chain] = ListBuffer()
+  type ReducingSeq = Tuple3[MessageId, MessageId, Map[MessageId, (MessageId, MessageId)]]
+
+  private val chains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty  
+  private val tempChains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty
+  private val randInt = new Random(options.randomSeed)
   private var suffixLen: Int = 0
 
-  private val randInt = new Random(options.randomSeed)
-
-  //Messages are placed in chains (tempChains) greedily.
-  def extend(msgs: List[Message]): Unit = {
-    msgs.foreach {
-      msg =>
-        chains.foreach {
-          c =>
-            if (msg.before(c.tail.get)) {
-              c.append(msg)
-              return
-            }
-        }
-        tempChains.foreach {
-          tc =>
-            if (msg.before(tc.tail.get)) {
-              tc.append(msg)
-              return
-            }
-        }
-        tempChains += new Chain(Some(msg), Some(msg))
+  private def msgToChain(id: MessageId): Chain = {
+    chains.find(_.contains(id)) match {
+      case Some(c) => c
+      case None => tempChains.find(_.contains(id)).get
     }
   }
-
-  def rewrite(a: Message, b: Message) = {
-    a.chainNext = Some(b)
-    a.chain.get.tail = b.chain.get.tail
-    var current: Option[Message] = Some(b)
-    while (current != None) {
-      current.get.chain = a.chain
-      current = current.get.chainNext
-    }
-  }
-
-  def reduce(a: Message, b: Message, pairs: Map[Message, (Message, Message)]): Unit = {
-    var ma = a
-    var mb = b
-
-    while (true) {
-      val bChain = mb.chain
-      rewrite(ma, mb)
-      if (!pairs.contains(mb)) {
-        //chains = chains.filter(_ != bChain.get)
-        chains -= bChain.get
-        tempChains -= bChain.get
-        return
-      }
-      ma = pairs(b)._1
-      mb = pairs(b)._2
-    }
-  }
-
+  
+  private def nextMessage(id: MessageId): Option[MessageId] = msgToChain(id).nextMessage(id)
+    
   //Reducing the total number of chains by one.
-  def merge() : Boolean = {
-    var currentQ: ListBuffer[Message] = ListBuffer()
-    var nextQ: ListBuffer[Message] = ListBuffer()
-    val pairs: Map[Message, (Message, Message)] = Map()
-
-    chains.foreach(c => currentQ += c.head.get)
-    tempChains.foreach(tc => currentQ += tc.head.get)
-
-    while (!currentQ.isEmpty) {
-      currentQ.foreach {
-        b =>
-          b.allPreds().foreach {
-            a =>
-              val aNext = a.chainNext
-              if (aNext == None) {
-                reduce(a, b, pairs)
-                return true
-              }
-              if (!pairs.contains(aNext.get)) {
-                pairs(aNext.get) = (a, b)
-                nextQ += aNext.get
-              }
-          }
+  private def reduce(): Boolean = {
+      
+    @tailrec
+    def redoChains(pid: MessageId, id: MessageId, pairs: Map[MessageId, (MessageId, MessageId)]): Unit = {
+      require(Messages.isBefore(pid, id))
+      
+      val pidChain = msgToChain(pid)
+      val idChain = msgToChain(id)
+      val ids = idChain.sliceLast(id)
+      pidChain.appendAll(ids)
+      idChain.removeAll(ids)
+      
+      if (!pairs.contains(id)) {
+        chains -= idChain
+        tempChains -= idChain
       }
-      //currentQ = nextQ
-      currentQ.clear
-      currentQ ++= nextQ
-      nextQ.clear
+      else redoChains(pairs(id)._1, pairs(id)._2, pairs)       
     }
-    false
+    
+    @tailrec
+    def findReducingSeq(currentQ: List[MessageId], pairs:  Map[MessageId, (MessageId, MessageId)]): Option[ReducingSeq] = {
+      currentQ match {
+        case Nil => None
+        case id :: ids =>
+          val preds = Messages.allPreds(id)
+          preds.find(nextMessage(_) == None) match {
+            case Some(pid) =>
+              Some((pid, id, pairs))             
+            case None =>
+              val temp = preds.filter(pid => !pairs.contains(nextMessage(pid).get))
+              findReducingSeq(ids ++ temp.map(nextMessage(_).get), 
+                          pairs ++ temp.map(pid => (nextMessage(pid).get -> (pid, id))))
+          }
+      }    
+      
+    }
+        
+    val currentQ = chains.filter(_.head != None).map(_.head.get).toList ++ tempChains.filter(_.head != None).map(_.head.get).toList
+    val pairs: Map[MessageId, (MessageId, MessageId)] = Map()
+    
+    findReducingSeq(currentQ, pairs) match {
+      case Some(rs) => 
+        redoChains(rs._1, rs._2, rs._3)
+        true
+      case None => false
+      
+    }
   }
-
-  def getMinEnabledMessage(): Message = {
-
-    while (merge()) {
-
+    
+  def getChains = chains.toList ++ tempChains.toList
+  
+  def extend(ids: List[MessageId]) {    
+    //Messages are placed in chains greedily.
+    def placeInChains(id: MessageId, inputChains: mutable.ListBuffer[Chain]): Boolean = 
+      inputChains.find(c => Messages.isBefore(c.tail.get, id)) match {
+        case Some(c) => 
+          c.append(id)
+          true
+        case None => false
     }
+    
+    for (id <- ids if !placeInChains(id, chains) && !placeInChains(id, tempChains)) {
+        tempChains += new Chain(id)      
+    }    
+  }
+  
+  def minimizeChains: Unit = if (reduce()) minimizeChains
+  
+  def shuffleChains = {
     tempChains.foreach {
-      tc =>
-        val pos = randInt.nextInt(chains.size - suffixLen)
-        chains.insert(pos, tc)
+      tc => tc.head match {
+        case Some(_) => 
+          chains.insert(if (chains.length - suffixLen == 0) 0 else randInt.nextInt(chains.length - suffixLen), tc)
+        case None =>
+      }
     }
-    tempChains.clear
-
-    chains.foreach {
-      c =>
-        if (c.head.get.isEnabled) {
-          c.head.get.isReceived = true
-          return c.remove()
-        }
+    tempChains.clear    
+  }
+  
+  def getMinEnabledMessage(): Option[MessageId] = {    
+    minimizeChains
+    shuffleChains
+    chains.find(_.firstEnabled != None) match {
+      case Some(c) => 
+        Messages.getMessage(c.firstEnabled.get).received = true
+        c.firstEnabled
+      case None => None
     }
-    return null
   }
 
-  def decreasePriority(chain: Chain) = {
-    chains.remove(chains.indexOf(chain))
+  def decreasePriority(id: MessageId) = {
+    val chain = msgToChain(id)
+    assert(chains.contains(chain))
+    chains -= chain
     chains += chain
     suffixLen += 1
   }
 }
-*/

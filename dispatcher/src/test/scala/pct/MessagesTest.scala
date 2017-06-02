@@ -20,11 +20,11 @@ class MessagesTest extends FlatSpec with Matchers {
   }
 
   "enabled" should "correctly return whether a message is enabled" in {
-    Messages.isEnabled(message1) shouldBe true
-    Messages.isEnabled(message2) shouldBe false
-    Messages.isEnabled(message3) shouldBe false
-    Messages.isEnabled(message4) shouldBe false
-    Messages.isEnabled(message5) shouldBe false
+    Messages.isEnabled(1L) shouldBe true
+    Messages.isEnabled(2L) shouldBe false
+    Messages.isEnabled(3L) shouldBe false
+    Messages.isEnabled(4L) shouldBe false
+    Messages.isEnabled(5L) shouldBe false
   }
 
   "before" should "correctly return whether a message is causally before another" in {
