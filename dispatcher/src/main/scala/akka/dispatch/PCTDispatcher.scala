@@ -4,7 +4,7 @@ import java.util.concurrent._
 
 import akka.actor.{Actor, ActorCell, ActorInitializationException, ActorRef, ActorSystem, Cell, InternalActorRef, Props}
 import akka.dispatch.PCTDispatcher.{MessageId, messages}
-import akka.dispatch.io.{CmdLineIOProvider, IOProvider}
+import akka.dispatch.io.{CmdLineIOProvider, IOProvider, PCTIOProvider}
 import akka.dispatch.time.TimerActor.AdvanceTime
 import akka.dispatch.sysmsg.{NoMessage, _}
 import akka.event.Logging._
@@ -12,7 +12,6 @@ import akka.io.Tcp
 import akka.io.Tcp.{apply => _, _}
 import akka.pattern.PromiseActorRef
 import com.typesafe.config.{Config, ConfigFactory}
-import pct.PCTActor
 import time.TimerActor
 import protocol._
 import util.{CmdLineUtils, FileUtils, IdGenerator, ReflectionUtils}
@@ -70,11 +69,6 @@ object PCTDispatcher {
   type MessageId = Long
 
   /**
-    * The dispatcher gets user/algorithm inputs via ioProvider
-    */
-  val ioProvider: IOProvider = CmdLineIOProvider
-
-  /**
     * Keeps the messages sent to the actors - the messages are not delivered immediately but collected here
     */
   private val actorMessagesMap: ActorMessagesMap = new ActorMessagesMap() //todo revise - might not be needed for PCTDispatcher
@@ -90,18 +84,6 @@ object PCTDispatcher {
     */
   def dispatchToActor(actor: Cell): Unit = {
     sendToDispatcher(DispatchToActor(actor))
-  }
-
-  /**
-    * Called when the user requests to dispatch the next message to a given actor
-    * @param receiverId id of the receiver actor
-    * @param senderId   id of the sender actor
-    * @param message    the message payload
-    */
-  def dispatchMessage(receiverId: String, senderId: String, message: Any): Unit = {
-    actorMessagesMap.getMessage(receiverId, senderId, message)
-    actorMessagesMap.removeMessage(receiverId, senderId, message)
-    //sendToDispatcher(DispatchToActor(actor))
   }
 
   /**
@@ -184,16 +166,21 @@ object PCTDispatcher {
   var helperActor: Option[ActorRef] = None
   var timerActor: Option[ActorRef] = None
 
-  var pctActor: Option[ActorRef] = None
+  /**
+    * The dispatcher gets user/algorithm inputs via ioProvider
+    */
+  var ioProvider: IOProvider = CmdLineIOProvider
 
   /**
     * Enables dispatcher to deliver messages to the actors
-    * To be called by the app when it is done with the actor creation/initialization
+    * Sets ioProvider to get inputs / write outputs
+    * Is called by the app when it is done with the actor creation/initialization
     *
     * @param system Actor System
     */
+  // todo reorganize reading configs
   def setUp(system: ActorSystem): Unit = {
-    system.dispatcher match { // check to prevent initializing ioProvider while using another Dispatcher type
+    system.dispatcher match { // check to prevent initializing while using another Dispatcher type
       case d: PCTDispatcher =>
         actorSystem = Some(system)
         helperActor = Some(system.actorOf(Props(new Actor() {
@@ -224,8 +211,22 @@ object PCTDispatcher {
           timer ! AdvanceTime
         }
 
+        try {
+          ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getString("pct-dispatcher.inputChoice").toUpperCase match {
+            case "CMDLINE" =>
+              printLog(CmdLineUtils.LOG_INFO, "Input choice: Command line")
+              ioProvider = CmdLineIOProvider
+            case "PCT" =>
+              printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
+              ioProvider = PCTIOProvider
+            case _ => printLog(CmdLineUtils.LOG_ERROR, "Input choice is not provided in the configuration file." +
+              "\nUsing command line by default")
+          }
+        } catch {
+          case e: Exception => printLog(CmdLineUtils.LOG_ERROR, "Input choice configuration cannot be read. Using command line by default")
+        }
+
         ioProvider.setUp(system)
-        pctActor = Some(system.actorOf(PCTActor.props, "PCTActor"))
 
       case _ => // do nth
     }
@@ -251,6 +252,8 @@ object PCTDispatcher {
   def listOfActorsByName: List[(String, List[Envelope])] = actorMessagesMap.toListWithActorPath
 
   def getActorMessages(actor: ActorRef): Set[Message] = messages.values.filter(m => m.receiver == actor).toSet
+
+  def getAllMessagesIds: Set[MessageId] = messages.keySet
 
   def printAllActorMessages(): Unit = actorMessagesMap.getAllActors.foreach(a => println(a.self.path + " -> " + getActorMessages(a.self)))
 }
@@ -372,11 +375,6 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     executorService execute r
   }
 
-  private def sendToPCTActor(response: ActionResponse) = pctActor match {
-    case Some(actor) => actor ! response
-    case None => printLog(CmdLineUtils.LOG_WARNING, "PCTActor is not created")
-  }
-
   /**
     * Overriden to intercept and keep the dispatched messages
     *
@@ -393,35 +391,30 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
           runOnExecutor(toRunnable(() => {
             val response = handleDispatchMessageToActor(message)
             ioProvider.putResponse(response)
-            sendToPCTActor(response)
           }))
           return
         case DropMessageFromActor(message) =>
           runOnExecutor(toRunnable(() => {
             val response = handleDropMessageFromActor(message)
             ioProvider.putResponse(response)
-            sendToPCTActor(response)
           }))
           return
         case DispatchToActor(actor) =>
           runOnExecutor(toRunnable(() => {
             val response = handleDispatchToActor(actor)
             ioProvider.putResponse(response)
-            sendToPCTActor(response)
           }))
           return
         case DropActorMessage(actor) =>
           runOnExecutor(toRunnable(() => {
             val response = handleDropActorMsg(actor)
             ioProvider.putResponse(response)
-            sendToPCTActor(response)
           }))
           return
         case InitDispatcher =>
           runOnExecutor(toRunnable(() => {
             val response = handleInitiate()
             ioProvider.putResponse(response)
-            sendToPCTActor(response)
           }))
           return
         case EndDispatcher =>
@@ -506,7 +499,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * @param invocation the dispatched system message
     */
   override def systemDispatch(receiver: ActorCell, invocation: SystemMessage): Unit = {
-    printLog(CmdLineUtils.LOG_INFO, "Delivered system msg: " + invocation + "   Actor: " + receiver.self)
+    printLog(CmdLineUtils.LOG_DEBUG, "Delivered system msg: " + invocation + "   Actor: " + receiver.self)
 
     // run the updates on the thread pool thread
     executorService execute updateActorMapWithSystemMessage(receiver, invocation)
@@ -523,21 +516,21 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       * IMPORTANT: Run here before registerForExecution so that actorMessagesMap is updated before terminated actor is deleted
       */
     invocation match {
-      case Create(failure: Option[ActorInitializationException]) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Create by failure: " + failure)
-      case Recreate(cause: Throwable) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Recreate by cause: " + cause)
-      case Suspend() => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Suspend")
-      case Resume(causedByFailure: Throwable) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Resume by failure: " + causedByFailure)
+      case Create(failure: Option[ActorInitializationException]) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Create by failure: " + failure)
+      case Recreate(cause: Throwable) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Recreate by cause: " + cause)
+      case Suspend() => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Suspend")
+      case Resume(causedByFailure: Throwable) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Resume by failure: " + causedByFailure)
       case Terminate() =>
-        CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "Handling system msg terminates: " + receiver.self)
+        CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg terminates: " + receiver.self)
         // add to the event list only if it is not a system actor
         if (!DispatcherUtils.isSystemActor(receiver.self)) {
           eventBuffer.addEvent(ActorDestroyed(receiver.self))
           actorMessagesMap.removeActor(receiver)
         }
-      case Supervise(child: ActorRef, async: Boolean) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Supervise. Child: " + child)
-      case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
-      case Unwatch(watchee: ActorRef, watcher: ActorRef) => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: Unwatch. Watchee: " + watchee + " Watcher: " + watcher)
-      case NoMessage => printLog(CmdLineUtils.LOG_INFO, "Handling system msg: NoMessage")
+      case Supervise(child: ActorRef, async: Boolean) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Supervise. Child: " + child)
+      case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
+      case Unwatch(watchee: ActorRef, watcher: ActorRef) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Unwatch. Watchee: " + watchee + " Watcher: " + watcher)
+      case NoMessage => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: NoMessage")
       case _ => // do not track the other system messages for now
     }
   })
@@ -546,7 +539,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * Overriden to add the actors with the created mailbox into the ActorMap
     */
   override def createMailbox(actor: akka.actor.Cell, mailboxType: MailboxType): Mailbox = {
-    printLog(CmdLineUtils.LOG_INFO, "Created mailbox for: " + actor.self + " in thread: " + Thread.currentThread().getName)
+    printLog(CmdLineUtils.LOG_DEBUG, "Created mailbox for: " + actor.self + " in thread: " + Thread.currentThread().getName)
 
     // add to the event list only if it is not a system actor
     if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ ) {

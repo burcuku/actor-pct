@@ -1,16 +1,35 @@
 package akka.dispatch.util
 
-import akka.actor.Props
 import akka.dispatch.DispatcherUtils
-import akka.dispatch.PCTDispatcher.timerActor
-import akka.dispatch.time.TimerActor
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.immutable.List
 
 object CmdLineUtils {
 
-  def parseInput(range: Range = Range(Int.MinValue, Int.MaxValue), allowedStrs: List[String] = List()): (String, Option[Int]) = {
+  def parseInput(set: Set[Int], allowedStrs: List[String]): (String, Option[Int]) = {
+    val line = Console.in.readLine().split(" ")
+
+    if (line.isEmpty || !allowedStrs.contains(line(0))) {
+      println("Wrong input, try again. ")
+      return parseInput(set, allowedStrs)
+    }
+
+    if (line(0).equalsIgnoreCase("start") || line(0).equalsIgnoreCase("quit")) (line(0), None)
+    else if (line.size != 2 || !line(1).charAt(0).isDigit) {
+      println("Wrong input, try again. ")
+      parseInput(set, allowedStrs)
+    }
+    else if (!set.contains(line(1).toInt)) {
+      println("Wrong integer input, try again. ")
+      parseInput(set, allowedStrs)
+    }
+    else {
+      (line(0), Some(line(1).toInt))
+    }
+  }
+
+  def parseInput(range: Range = Range(Int.MinValue, Int.MaxValue), allowedStrs: List[String]): (String, Option[Int]) = {
     val line = Console.in.readLine().split(" ")
 
     if (line.isEmpty || !allowedStrs.contains(line(0))) {
@@ -18,8 +37,8 @@ object CmdLineUtils {
       return parseInput(range, allowedStrs)
     }
 
-    if(line(0).equalsIgnoreCase("start") || line(0).equalsIgnoreCase("quit")) (line(0), None)
-    else if(line.size != 2 || !line(1).charAt(0).isDigit) {
+    if (line(0).equalsIgnoreCase("start") || line(0).equalsIgnoreCase("quit")) (line(0), None)
+    else if (line.size != 2 || !line(1).charAt(0).isDigit) {
       println("Wrong input, try again. ")
       parseInput(range, allowedStrs)
     }

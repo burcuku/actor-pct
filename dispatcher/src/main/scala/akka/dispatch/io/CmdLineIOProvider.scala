@@ -2,7 +2,7 @@ package akka.dispatch.io
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import CmdLineProcessorActor.GetInput
-import akka.dispatch.{ActorMessagesMap, PCTDispatcher, RequestHandler}
+import akka.dispatch.{ActorMessagesMap, PCTDispatcher, RequestForwarder}
 import akka.dispatch.util.CmdLineUtils
 import protocol._
 
@@ -36,21 +36,19 @@ class CmdLineProcessorActor extends Actor {
         " \"next <index>\" to dispatch the message with id <index> OR" +
         " \"drop <index>\" to drop the the message with id")
 
-      val choice = CmdLineUtils.parseInput(1 to 10, List("start", "next", "drop", "quit"))
+      val choice = CmdLineUtils.parseInput(PCTDispatcher.getAllMessagesIds.map(_.toInt), List("start", "next", "drop", "quit"))
 
       choice match {
         case ("start", _) =>
-          RequestHandler.handleRequest(InitRequest) // interpreted as Start
+          RequestForwarder.forwardRequest(InitRequest) // interpreted as Start
         case ("next", Some(0)) =>
-          println("Requested next actor")
-          RequestHandler.handleRequest(DispatchToActorRequest(""))
+          RequestForwarder.forwardRequest(DispatchToActorRequest(""))
         case ("next", Some(messageId)) =>
-          RequestHandler.handleRequest(DispatchMessageRequest(messageId))
+          RequestForwarder.forwardRequest(DispatchMessageRequest(messageId))
         case ("drop", Some(messageId)) =>
-          RequestHandler.handleRequest(DropMessageRequest(messageId))
+          RequestForwarder.forwardRequest(DropMessageRequest(messageId))
         case ("quit", _) =>
-          println("Requested to quit")
-          RequestHandler.handleRequest(TerminateRequest)
+          RequestForwarder.forwardRequest(TerminateRequest)
         case _ =>
           CmdLineUtils.printlnForUiInput("Wrong input. Try again.")
           self ! GetInput
@@ -60,7 +58,7 @@ class CmdLineProcessorActor extends Actor {
       //println("IOProvider received response: " + response)
       self ! GetInput // get next user input once the response is received
 
-    case _ => println("Undefined message sent to the CmdLineProcessorActor")
+    case _ => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Undefined message sent to the CmdLineProcessorActor")
   }
 }
 

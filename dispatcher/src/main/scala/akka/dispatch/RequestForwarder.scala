@@ -1,16 +1,13 @@
 package akka.dispatch
 
-import akka.actor.Cell
 import akka.dispatch.util.CmdLineUtils
 import protocol.{InitRequest, _}
 
 /**
-  * Handles a request by calling a particular method of the LoggingDispatcher
-  * The called methods of the LoggingDispatcher posts the required job on the dispatcher thread
-  *  (executed async on the dispatcher thread, not on the caller thread)
+  * Forwards a dispatching request to the PCTDispatcher
   */
-object RequestHandler {
-  def handleRequest(request: Request): Unit = request match {
+object RequestForwarder {
+  def forwardRequest(request: Request): Unit = request match {
 
     case InitRequest => // Start Request
       CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "===== Sending initial list of events..")
