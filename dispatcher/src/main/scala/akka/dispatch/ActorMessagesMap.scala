@@ -78,8 +78,8 @@ class ActorMessagesMap {
 
   def addActor(actor: Cell): Any = {
     actorMessages.get(actor) match {
-      case None => actorMessages += (actor -> List() )
-      case Some(msgList) =>   System.err.println("ActorMessagesMap - Message received before actor added into the map")
+      case None => actorMessages += (actor -> List())
+      case Some(msgList) => System.err.println("ActorMessagesMap - Message received before actor added into the map")
     }
   }
 
@@ -103,33 +103,7 @@ class ActorMessagesMap {
   /**
     * @return true if there are no actors or the message lists of all actors are empty
     */
-  def isAllEmptyExceptLogger: Boolean = {
-    def check(keys: Iterable[Cell]): Boolean = {
-      for(k <- keys) {
-        breakable {
-          if (k.self.toString().contains("log1-Logging$DefaultLogger")) break
-          if (!isEmpty(k)) return false
-        }
-      }
-      true
-    }
-
-    check(actorMessages.keys)
-  }
-
-  /**
-    * @return true if there are no actors or the message lists of all actors are empty
-    */
-  def isAllEmpty: Boolean = {
-     def check(keys: Iterable[Cell]): Boolean = {
-       for(k <- keys) {
-         if (!isEmpty(k)) return false
-       }
-       true
-     }
-
-    check(actorMessages.keys)
-  }
+  def isAllEmpty: Boolean = actorMessages.keys.forall(isEmpty)
 
   /**
     * @return true if the given actor has an empty message list

@@ -5,6 +5,8 @@ import protocol.Event
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
+
+
 /**
   * Keeps the list of actor events generated in the execution of the program
   * Note: Accessed by the dispatcher thread to:
@@ -13,20 +15,16 @@ import scala.reflect.ClassTag
   *    - read/consume in response to a user request
   *    (send initial list of events, after dispatch completes or the program terminates)
   */
-object ProgramEvents {
+class EventBuffer {
 
   /**
     * The list of events occurred in the actor program
     */
   private val events: ListBuffer[protocol.Event] = ListBuffer()
-  /**
-    * The index of (newly added) events to be sent to the debugger
-    */
-  private var recent = 0
 
   def isEmpty: Boolean = events.isEmpty
 
-  def addEvent(e: Event): ListBuffer[Event] = events += e
+  def addEvent(e: Event): Unit = events += e
 
   def clear(): Unit = events.clear()
 
@@ -40,9 +38,13 @@ object ProgramEvents {
     events.toList.filter(e => clazz.isInstance(e))
   }
 
-   /**
+  /**
+    * The index of (newly added) events to be sent to the debugger
+    */
+  private var recent = 0
+
+  /**
     * Returns the list of events added after last query
-    * @return
     */
   def consumeEvents: List[Event] = {
     val list = events.toList.drop(recent)
@@ -52,5 +54,4 @@ object ProgramEvents {
   }
 
   override def toString: String = events.toList.toString
-
 }

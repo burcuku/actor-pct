@@ -5,12 +5,12 @@ import protocol._
 
 trait IOProvider {
   def setUp(system: ActorSystem): Unit
-  def putResponse(response: QueryResponse)
+  def putResponse(response: Response)
 }
 
 object NopIOProvider extends IOProvider {
   override def setUp(system: ActorSystem): Unit = {}
 
-  override def putResponse(response: QueryResponse): Unit = {}
+  override def putResponse(response: Response): Unit = {}
 }
 
