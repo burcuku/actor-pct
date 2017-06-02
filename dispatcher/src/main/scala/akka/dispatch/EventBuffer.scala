@@ -1,11 +1,10 @@
 package akka.dispatch
 
-import protocol.Event
+import akka.dispatch.PCTDispatcher.MessageId
+import protocol.{ActorCreated, Event}
 
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
-
-
 
 /**
   * Keeps the list of actor events generated in the execution of the program
@@ -20,22 +19,24 @@ class EventBuffer {
   /**
     * The list of events occurred in the actor program
     */
-  private val events: ListBuffer[protocol.Event] = ListBuffer()
+  private val events: ListBuffer[(MessageId, Event)] = ListBuffer()
 
   def isEmpty: Boolean = events.isEmpty
 
-  def addEvent(e: Event): Unit = events += e
+  def addEvent(id: MessageId, e: Event): Unit = events += ((id, e))
+
+  def addEvent(e: Event): Unit = events += ((NO_MSG, e))
 
   def clear(): Unit = events.clear()
 
-  def getAllEvents: List[Event] = events.toList
+  def getAllEvents: List[Event] = events.map(_._2).toList
 
   /**
     * Returns the list of events of a particular event type
     */
-  def getEvents[T <: Event : ClassTag]: List[Event] = {
+  def getEvents[T <: Event : ClassTag]: List[(MessageId, Event)] = {
     val clazz = implicitly[ClassTag[T]].runtimeClass
-    events.toList.filter(e => clazz.isInstance(e))
+    events.toList.filter(e => clazz.isInstance(e._2))
   }
 
   /**
@@ -46,7 +47,7 @@ class EventBuffer {
   /**
     * Returns the list of events added after last query
     */
-  def consumeEvents: List[Event] = {
+  def consumeEvents: List[(MessageId, Event)] = {
     val list = events.toList.drop(recent)
     //events.clear()
     recent = events.size
@@ -54,4 +55,6 @@ class EventBuffer {
   }
 
   override def toString: String = events.toList.toString
+
+  private val NO_MSG = -1
 }

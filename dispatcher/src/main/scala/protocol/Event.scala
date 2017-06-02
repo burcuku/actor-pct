@@ -18,6 +18,4 @@ object Events {
   val MESSAGE_SENT = "MESSAGE_SENT"
   val MESSAGE_RECEIVED = "MESSAGE_RECEIVED"
   val MESSAGE_DROPPED = "MESSAGE_DROPPED"
-
-  val InitialReceived = MessageReceived(ActorRef.noSender, Envelope("", ActorRef.noSender))
 }

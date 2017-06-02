@@ -11,7 +11,7 @@ object CmdLineIOProvider extends IOProvider {
 
   override def setUp(system: ActorSystem): Unit = {
     cmdLineProcessor = Some(system.actorOf(CmdLineProcessorActor.props))
-    cmdLineProcessor.get ! GetInput
+    RequestForwarder.forwardRequest(InitRequest)
   }
 
   def putResponse(response: Response): Unit = {
@@ -28,21 +28,19 @@ class CmdLineProcessorActor extends Actor {
   override def receive: Receive = {
     // blocking wait for an input
     case GetInput =>
-      //val actorMsgs = PCTDispatcher.listOfActorsByName
-      //CmdLineUtils.printListOfMap(actorMsgs)
-      PCTDispatcher.printAllActorMessages
+      println("\nPredecessors:")
+      PCTDispatcher.getAllPredecessors.foreach(a => println(a._1 + " -> " + a._2))
+      println("\nActor messages:")
+      PCTDispatcher.getAllActorMessagesToProcess.foreach(a => println(a._1.path + " -> " + a._2))
 
-      CmdLineUtils.printlnForUiInput("Please enter the next command: \"start\" OR \"quit\" OR " +
-        " \"next <index>\" to dispatch the message with id <index> OR" +
-        " \"drop <index>\" to drop the the message with id")
+      CmdLineUtils.printlnForUiInput("Please enter the next command: " +
+        " \"next <index>\" to dispatch the message with id <index> OR " +
+        //" \"drop <index>\" to drop the the message with id <index> OR " +
+        "\"quit\" to quit. ")
 
-      val choice = CmdLineUtils.parseInput(PCTDispatcher.getAllMessagesIds.map(_.toInt), List("start", "next", "drop", "quit"))
+      val choice = CmdLineUtils.parseInput(PCTDispatcher.getAllMessagesIds.map(_.toInt), List("next", "drop", "quit"))
 
       choice match {
-        case ("start", _) =>
-          RequestForwarder.forwardRequest(InitRequest) // interpreted as Start
-        case ("next", Some(0)) =>
-          RequestForwarder.forwardRequest(DispatchToActorRequest(""))
         case ("next", Some(messageId)) =>
           RequestForwarder.forwardRequest(DispatchMessageRequest(messageId))
         case ("drop", Some(messageId)) =>

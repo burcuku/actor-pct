@@ -100,6 +100,15 @@ class ActorMessagesMap {
     }
   }
 
+  def hasActor(actorId: ActorRef): Option[Cell] = {
+    def helper(actors: List[Cell]): Option[Cell] = actors match {
+      case Nil => None
+      case x :: xs if x.self.equals(actorId) => Some(x)
+      case x :: xs => helper(xs)
+    }
+    helper(actorMessages.keySet.toList)
+  }
+
   /**
     * @return true if there are no actors or the message lists of all actors are empty
     */
