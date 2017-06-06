@@ -9,7 +9,7 @@ class PCTDecomposition(options: PCTOptions) {
 
   private val chains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty  
   private val tempChains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty
-  private val randInt = new Random(options.randomSeed)
+  private val randInt = new Random //new Random(options.randomSeed)
   private var suffixLen: Int = 0
 
   private def msgToChain(id: MessageId): Chain = {
@@ -94,7 +94,8 @@ class PCTDecomposition(options: PCTOptions) {
     tempChains.foreach {
       tc => tc.head match {
         case Some(_) => 
-          chains.insert(if (chains.length - suffixLen == 0) 0 else randInt.nextInt(chains.length - suffixLen), tc)
+          val newIndx = randInt.nextInt(chains.length + 1 - suffixLen)
+          chains.insert(newIndx, tc)
         case None =>
       }
     }
@@ -102,8 +103,8 @@ class PCTDecomposition(options: PCTOptions) {
   }
   
   def getMinEnabledMessage(): Option[MessageId] = {    
-    minimizeChains
-    shuffleChains    
+    //minimizeChains
+    //shuffleChains    
     chains.find(_.firstEnabled != None) match {
       case Some(c) =>
         val enabledMessage = c.firstEnabled
