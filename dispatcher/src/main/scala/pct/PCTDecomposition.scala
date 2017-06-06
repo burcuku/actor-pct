@@ -30,7 +30,7 @@ class PCTDecomposition(options: PCTOptions) {
       
       val pidChain = msgToChain(pid)
       val idChain = msgToChain(id)
-      val ids = idChain.sliceLast(id)
+      val ids = idChain.sliceSuccessors(id)
       pidChain.appendAll(ids)
       idChain.removeAll(ids)
       
@@ -103,11 +103,12 @@ class PCTDecomposition(options: PCTOptions) {
   
   def getMinEnabledMessage(): Option[MessageId] = {    
     minimizeChains
-    shuffleChains
+    shuffleChains    
     chains.find(_.firstEnabled != None) match {
-      case Some(c) => 
-        Messages.getMessage(c.firstEnabled.get).received = true
-        c.firstEnabled
+      case Some(c) =>
+        val enabledMessage = c.firstEnabled
+        Messages.markReceived(enabledMessage.get)
+        enabledMessage
       case None => None
     }
   }

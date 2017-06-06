@@ -28,4 +28,6 @@ object Messages {
   //def isEnabled(msg: Message): Boolean = !msg.received && msg.preds.map(id => idsToMsgs(id)).forall(_.received)
   
   def isEnabled(id: MessageId): Boolean = !idsToMsgs(id).received && idsToMsgs(id).preds.map(prevId => idsToMsgs(prevId)).forall(_.received)  
+  
+  def markReceived(id: MessageId) = idsToMsgs(id).received = true
 }

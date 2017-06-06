@@ -10,7 +10,7 @@ class Chain {
     this()
     messages += id  
   }
-  
+    
   def append(id: MessageId): Unit = messages += id
   
   def remove(id: MessageId): Unit = messages -= id
@@ -19,7 +19,7 @@ class Chain {
   
   def removeAll(ids: List[MessageId]): Unit = messages --= ids
   
-  def sliceLast(id: MessageId): List[MessageId] = messages.slice(messages.indexOf(id), messages.length).toList 
+  def sliceSuccessors(id: MessageId): List[MessageId] = messages.slice(messages.indexOf(id), messages.length).toList 
   
   def nextMessage(id: MessageId): Option[MessageId] = {
     require(messages.contains(id))

@@ -155,12 +155,14 @@ class PCTDecompositionTest extends WordSpec with Matchers {
       pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(message3.id, message4.id, message0.id, message1.id, message2.id, message5.id, message7.id, message8.id, message6.id, message9.id))        
       
-      pctDecomposition.getMinEnabledMessage shouldBe pctDecomposition.getChains(0).head
-      pctDecomposition.getMinEnabledMessage
-      pctDecomposition.getMinEnabledMessage
-      pctDecomposition.getMinEnabledMessage
-      pctDecomposition.getMinEnabledMessage
-      pctDecomposition.getMinEnabledMessage shouldBe pctDecomposition.getChains(1).head
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message0.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message1.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message2.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message3.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message4.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message5.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message6.id)
+      pctDecomposition.getMinEnabledMessage shouldBe Some(message7.id)
     }
   }
   
