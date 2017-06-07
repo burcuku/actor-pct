@@ -5,7 +5,8 @@ import scala.collection.mutable
 
 class PCTDecompositionTest extends WordSpec with Matchers {
 
-  val pctOptions = PCTOptions(0L)
+  //val pctOptions = PCTOptions(0L)
+  val pctOptions = PCTOptions()
   
   val message0 = Message(0L, Set())
   val message1 = Message(1L, Set(0L))
@@ -128,6 +129,24 @@ class PCTDecompositionTest extends WordSpec with Matchers {
       pctDecomposition.getChains.length shouldBe 1
       pctDecomposition.getChains(0).head shouldBe Some(message3.id)
       pctDecomposition.getChains(0).tail shouldBe Some(message9.id)      
+    }  
+    
+    "test4: minimize the number of chains (width of partial order)" in {
+      val pctDecomposition = new PCTDecomposition(pctOptions)
+      pctDecomposition.getChains shouldBe empty
+      pctDecomposition.extend(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))  
+      pctDecomposition.getChains.length shouldBe 2
+      pctDecomposition.getChains(0).head shouldBe Some(message0.id)
+      pctDecomposition.getChains(0).tail shouldBe Some(message6.id)      
+      pctDecomposition.getChains(1).head shouldBe Some(message3.id)
+      pctDecomposition.getChains(1).tail shouldBe Some(message9.id)
+      
+      pctDecomposition.minimizeChains
+      pctDecomposition.getChains.length shouldBe 2
+      pctDecomposition.getChains(0).head shouldBe Some(message0.id)
+      pctDecomposition.getChains(0).tail shouldBe Some(message6.id)      
+      pctDecomposition.getChains(1).head shouldBe Some(message3.id)
+      pctDecomposition.getChains(1).tail shouldBe Some(message9.id)
     }    
   }
   
@@ -141,11 +160,10 @@ class PCTDecompositionTest extends WordSpec with Matchers {
       pctDecomposition.getChains(0).head shouldBe Some(message3.id)
       pctDecomposition.getChains(0).tail shouldBe Some(message6.id)      
       pctDecomposition.getChains(1).head shouldBe Some(message0.id)
-      pctDecomposition.getChains(1).tail shouldBe Some(message2.id)      
-      
+      pctDecomposition.getChains(1).tail shouldBe Some(message2.id)
+                  
       pctDecomposition.shuffleChains
       pctDecomposition.getChains.length shouldBe 2
-      //pctDecomposition.getChains(0).head should not equal Some(message3.id)      
     }
   }
   
@@ -153,16 +171,30 @@ class PCTDecompositionTest extends WordSpec with Matchers {
     "compute the first enabled message in the list of chains" in {
       val pctDecomposition = new PCTDecomposition(pctOptions)
       pctDecomposition.getChains shouldBe empty
-      pctDecomposition.extend(List(message3.id, message4.id, message0.id, message1.id, message2.id, message5.id, message7.id, message8.id, message6.id, message9.id))        
+      pctDecomposition.extend(List(message3.id, message4.id, message0.id, message1.id, message2.id, message5.id, message7.id, message8.id, message6.id, message9.id))   
+      pctDecomposition.minimizeChains
+      pctDecomposition.shuffleChains
       
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message0.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message1.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message2.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message3.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message4.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message5.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message6.id)
-      pctDecomposition.getMinEnabledMessage shouldBe Some(message7.id)
+      if (pctDecomposition.getChains(0).head == Some(message0.id)) {
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message0.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message1.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message2.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message3.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message4.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message5.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message6.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message7.id)        
+      }
+      else {
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message3.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message4.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message7.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message8.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message9.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message0.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message1.id)
+        pctDecomposition.getMinEnabledMessage shouldBe Some(message2.id)                
+      }
     }
   }
   
@@ -171,6 +203,8 @@ class PCTDecompositionTest extends WordSpec with Matchers {
       val pctDecomposition = new PCTDecomposition(pctOptions)
       pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(message3.id, message4.id, message0.id, message1.id, message2.id, message5.id, message7.id, message8.id, message6.id, message9.id))        
+      pctDecomposition.minimizeChains
+      pctDecomposition.shuffleChains
       val id = pctDecomposition.getMinEnabledMessage.get
       pctDecomposition.decreasePriority(id)
       pctDecomposition.getChains.last.contains(id) shouldBe true

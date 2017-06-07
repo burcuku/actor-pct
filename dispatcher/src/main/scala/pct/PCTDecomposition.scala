@@ -9,7 +9,7 @@ class PCTDecomposition(options: PCTOptions) {
 
   private val chains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty  
   private val tempChains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty
-  private val randInt = new Random //new Random(options.randomSeed)
+  private val randInt = new Random//new Random(options.randomSeed)
   private var suffixLen: Int = 0
 
   private def msgToChain(id: MessageId): Chain = {
@@ -95,6 +95,7 @@ class PCTDecomposition(options: PCTOptions) {
       tc => tc.head match {
         case Some(_) => 
           val newIndx = randInt.nextInt(chains.length + 1 - suffixLen)
+          //println(newIndx)
           chains.insert(newIndx, tc)
         case None =>
       }
