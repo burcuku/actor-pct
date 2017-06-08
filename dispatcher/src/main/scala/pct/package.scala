@@ -7,6 +7,6 @@ package object pct {
   case class PCTOptions(randomSeed: Long = System.currentTimeMillis(),
                         maxChains: Int = 0,
                         maxMessages: Int = 0,
-                        bugDepth: Int = 2)
+                        bugDepth: Int = 1)
 
 }
