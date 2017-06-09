@@ -39,4 +39,6 @@ class Chain {
   //def firstUnreceived: Option[Message] = messages.find(msg => !msg.received)
   
   def firstEnabled: Option[MessageId] = messages.find(id => Messages.isEnabled(id))
+  
+  def toList: List[MessageId] = messages.toList
 }

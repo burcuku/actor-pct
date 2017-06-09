@@ -483,6 +483,10 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     FileUtils.printToFile("allEvents") { p =>
       eventBuffer.getAllEvents.foreach(p.println)
     }
+    
+    FileUtils.printToFile("allMessages") { p =>
+      eventBuffer.getEvents[MessageReceived].foreach(p.println)      
+    }
     //getAllMessages.foreach(println)
 
     super.shutdown

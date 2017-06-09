@@ -18,5 +18,8 @@ libraryDependencies ++= Seq(
   "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.2-SNAPSHOT",
 
   // groupID % artifactID % revision
-  "com.pct" %% "actor-pct" % "1.0"
+  "com.pct" %% "actor-pct" % "1.0",
+  "ch.qos.logback" % "logback-classic" % "1.1.7",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
+  
 )
