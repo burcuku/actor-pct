@@ -116,7 +116,6 @@ object PCTDispatcher {
     *
     * @param system Actor System
     */
-  // todo reorganize reading configs
   def setUp(system: ActorSystem): Unit = {
     system.dispatcher match { // check to prevent initializing while using another Dispatcher type
       case d: PCTDispatcher =>
@@ -125,43 +124,23 @@ object PCTDispatcher {
           override def receive: Receive = Actor.emptyBehavior
         }), "DispatcherHelperActor"))
 
-        // read the virtual time step config and create TimerActor
-        var timeStep: FiniteDuration = FiniteDuration(1, TimeUnit.MILLISECONDS)
-
         // create TimerActor only if the user uses virtual time (e.g. scheduler.schedule methods) in his program
-        val useTimer: Boolean = try {
-          ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getBoolean("pct-dispatcher.useVirtualTimer")
-        } catch {
-          case e: Exception =>
-            true
-        }
-
-        if (useTimer) {
-          val timer = system.actorOf(Props(new TimerActor(timeStep)), "Timer")
+        if(DispatcherOptions.useTimer) {
+          val timer = system.actorOf(Props(new TimerActor(DispatcherOptions.timeStep)), "Timer")
           timerActor = Some(timer)
-
-          try {
-            FiniteDuration(ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getDuration("pct-dispatcher.timestep", TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
-          } catch {
-            case e: Exception =>
-              printLog(CmdLineUtils.LOG_WARNING, "No valid timestep duration provided in configuration file. Using default timestep 1 MILLISECONDS")
-          }
           timer ! AdvanceTime
         }
 
-        try {
-          ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getString("pct-dispatcher.inputChoice").toUpperCase match {
-            case "CMDLINE" =>
-              printLog(CmdLineUtils.LOG_INFO, "Input choice: Command line")
-              ioProvider = CmdLineIOProvider
-            case "PCT" =>
-              printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
-              ioProvider = PCTIOProvider
-            case _ => printLog(CmdLineUtils.LOG_ERROR, "Input choice is not provided in the configuration file." +
-              "\nUsing command line by default")
-          }
-        } catch {
-          case e: Exception => printLog(CmdLineUtils.LOG_ERROR, "Input choice configuration cannot be read. Using command line by default")
+        DispatcherOptions.uiChoice.toUpperCase match {
+          case "CMDLINE" =>
+            printLog(CmdLineUtils.LOG_INFO, "Input choice: Command line")
+            ioProvider = CmdLineIOProvider
+          case "PCT" =>
+            printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
+            ioProvider = PCTIOProvider
+          case _ =>
+            printLog(CmdLineUtils.LOG_INFO, "Default input choice: Command line")
+            ioProvider = CmdLineIOProvider
         }
 
         ioProvider.setUp(system)

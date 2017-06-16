@@ -1,7 +1,6 @@
 package akka.dispatch.util
 
-import akka.dispatch.DispatcherUtils
-import com.typesafe.config.ConfigFactory
+import akka.dispatch.DispatcherOptions
 
 import scala.collection.immutable.List
 
@@ -51,11 +50,7 @@ object CmdLineUtils {
     }
   }
 
-  private val logLevel: Int = try {
-    ConfigFactory.load(DispatcherUtils.dispatcherConfigFile).getInt("pct-dispatcher.logLevel")
-  } catch {
-    case e: Exception => 1
-  }
+  private val logLevel: Int = DispatcherOptions.logLevel
 
   def printLog(logType: Int, s: String): Unit = logType match {
     case LOG_DEBUG if logLevel <= LOG_DEBUG => println(s)
