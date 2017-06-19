@@ -11,10 +11,8 @@ class PCTActor extends Actor {
   private val pctStrategy = new PCTStrategy(pctOptions)
   
   //The first message should be created otherwise pct crashes!
-  val message0 = new Message(0L, Set(), true)
-  Messages.putMessage(message0)
-  pctStrategy.setNewMessages(List(message0.id))
-  
+  pctStrategy.setNewMessages(Map(0L->Set()))
+    
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
     // (i.e. after the program initialization and after a message is processed by an actor)
@@ -22,19 +20,13 @@ class PCTActor extends Actor {
       //println("PCTActor received predecessors: ")
       //predecessors.foreach(m => println("Message " + m._1 + " has predecessors -> " + m._2))
       //Update chains with the new messages
-      var newMessages: List[MessageId] = List()
-      predecessors.foreach {m =>        
-        val message = new Message(m._1, m._2) 
-        Messages.putMessage(message)
-        newMessages = newMessages :+ message.id
-      }
-      pctStrategy.setNewMessages(newMessages)
+      pctStrategy.setNewMessages(predecessors)
       //Select a message using the PCT algorithm
       val nextMessage = pctStrategy.getNextMessage
       //Forward dispatch request to the PCTDispatcher:
       nextMessage match {
         case Some(id) => RequestForwarder.forwardRequest(DispatchMessageRequest(id))
-        case None => 
+        case None => println("No enabled message!")
       }      
   }
 }

@@ -10,39 +10,40 @@ class MessagesTest extends FlatSpec with Matchers {
   val message4 = Message(14L, Set(11L, 12L))
   val message5 = Message(15L, Set(11L, 13L))
 
-  List(message1, message2, message3, message4, message5).foreach(m => Messages.putMessage(m))
+  val messages = new Messages()
+  List(message1, message2, message3, message4, message5).foreach(m => messages.putMessage(m))
 
   "all preds" should "correctly return predecessors" in {
-    Messages.allPreds(11L) shouldBe Set()
-    Messages.allPreds(13L) shouldBe Set(12L)
-    Messages.allPreds(14L) shouldBe Set(11L, 12L)
-    Messages.allPreds(15L) shouldBe Set(11L, 12L, 13L)
+    messages.allPreds(11L) shouldBe Set()
+    messages.allPreds(13L) shouldBe Set(12L)
+    messages.allPreds(14L) shouldBe Set(11L, 12L)
+    messages.allPreds(15L) shouldBe Set(11L, 12L, 13L)
   }
 
   "enabled" should "correctly return whether a message is enabled" in {
-    Messages.isEnabled(11L) shouldBe true
-    Messages.isEnabled(12L) shouldBe false
-    Messages.isEnabled(13L) shouldBe false
-    Messages.isEnabled(14L) shouldBe false
-    Messages.isEnabled(15L) shouldBe false
+    messages.isEnabled(11L) shouldBe true
+    messages.isEnabled(12L) shouldBe false
+    messages.isEnabled(13L) shouldBe false
+    messages.isEnabled(14L) shouldBe false
+    messages.isEnabled(15L) shouldBe false
   }
 
   "before" should "correctly return whether a message is causally before another" in {
-    Messages.isBefore(11L, 11L) shouldBe false
-    Messages.isBefore(11L, 12L) shouldBe false
+    messages.isBefore(11L, 11L) shouldBe false
+    messages.isBefore(11L, 12L) shouldBe false
 
-    Messages.isBefore(12L, 13L) shouldBe true
-    Messages.isBefore(13L, 12L) shouldBe false
+    messages.isBefore(12L, 13L) shouldBe true
+    messages.isBefore(13L, 12L) shouldBe false
 
-    Messages.isBefore(14L, 13L) shouldBe false
-    Messages.isBefore(14L, 11L) shouldBe false
-    Messages.isBefore(14L, 12L) shouldBe false
-    Messages.isBefore(12L, 14L) shouldBe true
-    Messages.isBefore(11L, 14L) shouldBe true
+    messages.isBefore(14L, 13L) shouldBe false
+    messages.isBefore(14L, 11L) shouldBe false
+    messages.isBefore(14L, 12L) shouldBe false
+    messages.isBefore(12L, 14L) shouldBe true
+    messages.isBefore(11L, 14L) shouldBe true
 
-    Messages.isBefore(15L, 11L) shouldBe false
-    Messages.isBefore(11L, 15L) shouldBe true
-    Messages.isBefore(12L, 15L) shouldBe true
-    Messages.isBefore(13L, 15L) shouldBe true
+    messages.isBefore(15L, 11L) shouldBe false
+    messages.isBefore(11L, 15L) shouldBe true
+    messages.isBefore(12L, 15L) shouldBe true
+    messages.isBefore(13L, 15L) shouldBe true
   }
 }

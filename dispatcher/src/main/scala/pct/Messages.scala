@@ -3,7 +3,7 @@ package pct
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-object Messages {
+class Messages {
   private val idsToMsgs: mutable.Map[MessageId, Message] = mutable.Map()
 
   def putMessage(message: Message): Unit = idsToMsgs += (message.id -> message)

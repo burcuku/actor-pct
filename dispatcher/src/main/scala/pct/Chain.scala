@@ -21,14 +21,14 @@ class Chain {
   
   def sliceSuccessors(id: MessageId): List[MessageId] = messages.slice(messages.indexOf(id), messages.length).toList 
   
-  def nextMessage(id: MessageId): Option[MessageId] = {
+  /*def nextMessage(id: MessageId): Option[MessageId] = {
     require(messages.contains(id))
     val idx = messages.indexOf(id)
     if (idx == messages.length - 1) 
       None
     else 
       Some(messages(idx + 1))
-  }
+  }*/
   
   def contains(id: MessageId): Boolean = messages.contains(id)
   
@@ -38,7 +38,7 @@ class Chain {
 
   //def firstUnreceived: Option[Message] = messages.find(msg => !msg.received)
   
-  def firstEnabled: Option[MessageId] = messages.find(id => Messages.isEnabled(id))
+  //def firstEnabled(messagesDeps: Messages): Option[MessageId] = messages.find(id => messagesDeps.isEnabled(id))
   
   def toList: List[MessageId] = messages.toList
 }

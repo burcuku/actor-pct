@@ -28,7 +28,11 @@ class PCTStrategy(options: PCTOptions) extends LazyLogging {
     logger.info("chains:")
     pctDecomposition.getChains.foreach (c => logger.info("\t" + c.toList))
     logger.info("schedule[" + msgIndex + "]= " + id)    
-    logger.info("Message " + id + " has predecessors -> " + Messages.getMessage(id).preds + "\n")
+  }
+  
+  private def logPredecessors(predecessors: Map[MessageId, Set[MessageId]]) = {
+    logger.info("PCTStrategy received predecessors: ")
+    predecessors.foreach(m => logger.info("\t" + "Message " + m._1 + " has predecessors -> " + m._2))
   }
   
   def printPrioInvPoints = {
@@ -41,8 +45,10 @@ class PCTStrategy(options: PCTOptions) extends LazyLogging {
     schedule.foreach(id => println(id))
   }
   
-  def setNewMessages(ids: List[MessageId]) = {
-    pctDecomposition.extend(ids)
+  def setNewMessages(predecessors: Map[MessageId, Set[MessageId]]) = {
+    logPredecessors(predecessors)
+    pctDecomposition.putMessages(predecessors)
+    pctDecomposition.extend(predecessors.keys.toList)
     pctDecomposition.minimizeChains
     pctDecomposition.shuffleChains
   }

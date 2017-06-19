@@ -7,32 +7,42 @@ import scala.annotation.tailrec
 class PCTDecomposition(options: PCTOptions) {
   type ReducingSeq = Tuple3[MessageId, MessageId, Map[MessageId, (MessageId, MessageId)]]
 
+  private val messagesDependencies: Messages = new Messages()
   private val chains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty  
   private val tempChains: mutable.ListBuffer[Chain] = mutable.ListBuffer.empty
   private val randInt = new Random//new Random(options.randomSeed)
   private var suffixLen: Int = 0
-
+  private val msgToChainMap: mutable.Map[MessageId, Chain] = mutable.Map()
+  private val nextMessageMap: mutable.Map[MessageId, MessageId] = mutable.Map()
+  
   private def msgToChain(id: MessageId): Chain = {
-    chains.find(_.contains(id)) match {
+    msgToChainMap(id)
+    /*chains.find(_.contains(id)) match {
       case Some(c) => c
       case None => tempChains.find(_.contains(id)).get
-    }
+    }*/
   }
   
-  private def nextMessage(id: MessageId): Option[MessageId] = msgToChain(id).nextMessage(id)
+  private def nextMessage(id: MessageId): Option[MessageId] = nextMessageMap.get(id) //msgToChain(id).nextMessage(id)
     
   //Reducing the total number of chains by one.
   private def reduce(): Boolean = {
       
     @tailrec
     def redoChains(pid: MessageId, id: MessageId, pairs: Map[MessageId, (MessageId, MessageId)]): Unit = {
-      require(Messages.isBefore(pid, id))
+      require(messagesDependencies.isBefore(pid, id))
       
       val pidChain = msgToChain(pid)
       val idChain = msgToChain(id)
       val ids = idChain.sliceSuccessors(id)
       pidChain.appendAll(ids)
       idChain.removeAll(ids)
+      ids.foreach(id => msgToChainMap += (id -> pidChain))
+      nextMessageMap += (pid -> id)
+      idChain.tail match {
+        case Some(t) => nextMessageMap -= t
+        case None =>
+      }
       
       if (!pairs.contains(id)) {
         chains -= idChain
@@ -46,7 +56,7 @@ class PCTDecomposition(options: PCTOptions) {
       currentQ match {
         case Nil => None
         case id :: ids =>
-          val preds = Messages.allPreds(id)
+          val preds = messagesDependencies.allPreds(id)
           preds.find(nextMessage(_) == None) match {
             case Some(pid) =>
               Some((pid, id, pairs))             
@@ -73,18 +83,26 @@ class PCTDecomposition(options: PCTOptions) {
     
   def getChains = chains.toList ++ tempChains.toList
   
-  def extend(ids: List[MessageId]) {    
+  def putMessages(predecessors: Map[MessageId, Set[MessageId]]) = 
+    predecessors.foreach(m => messagesDependencies.putMessage(new Message(m._1, m._2)))
+
+  def extend(ids: List[MessageId]) = {    
     //Messages are placed in chains greedily.
     def placeInChains(id: MessageId, inputChains: mutable.ListBuffer[Chain]): Boolean = 
-      inputChains.find(c => Messages.isBefore(c.tail.get, id)) match {
+      inputChains.find(c => messagesDependencies.isBefore(c.tail.get, id)) match {
         case Some(c) => 
+          val prevTail = c.tail.get
           c.append(id)
+          msgToChainMap += (id -> c)
+          nextMessageMap += (prevTail -> id)
           true
         case None => false
     }
     
     for (id <- ids if !placeInChains(id, chains) && !placeInChains(id, tempChains)) {
-        tempChains += new Chain(id)      
+      val newChain = new Chain(id) 
+      tempChains += newChain
+      msgToChainMap += (id -> newChain)  
     }    
   }
   
@@ -106,10 +124,14 @@ class PCTDecomposition(options: PCTOptions) {
   def getMinEnabledMessage(): Option[MessageId] = {    
     //minimizeChains
     //shuffleChains    
-    chains.find(_.firstEnabled != None) match {
+    
+    def firstEnabled:  Option[Chain] = {
+      chains.find(c => c.toList.find(id => messagesDependencies.isEnabled(id)) != None)
+    }
+    firstEnabled match {
       case Some(c) =>
-        val enabledMessage = c.firstEnabled
-        Messages.markReceived(enabledMessage.get)
+        val enabledMessage = c.toList.find(id => messagesDependencies.isEnabled(id))
+        messagesDependencies.markReceived(enabledMessage.get)
         enabledMessage
       case None => None
     }
