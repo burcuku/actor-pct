@@ -12,6 +12,7 @@ class PCTActor extends Actor {
   
   //The first message should be created otherwise pct crashes!
   pctStrategy.setNewMessages(Map(0L->Set()))
+  pctStrategy.getNextMessage
     
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
@@ -26,7 +27,7 @@ class PCTActor extends Actor {
       //Forward dispatch request to the PCTDispatcher:
       nextMessage match {
         case Some(id) => RequestForwarder.forwardRequest(DispatchMessageRequest(id))
-        case None => println("No enabled message!")
+        case None => RequestForwarder.forwardRequest(TerminateRequest) 
       }      
   }
 }
