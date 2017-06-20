@@ -152,6 +152,27 @@ class PCTDecompositionTest extends WordSpec with Matchers {
       pctDecomposition.getChains(0).tail shouldBe Some(6L)      
       pctDecomposition.getChains(1).head shouldBe Some(3L)
       pctDecomposition.getChains(1).tail shouldBe Some(9L)
+    }
+    
+    "test5: minimize the number of chains (width of partial order)" in {
+      val pctDecomposition = new PCTDecomposition(pctOptions)
+      pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(), 2L->Set(0L, 1L), 3L->Set(1L)))
+      //pctDecomposition.getChains shouldBe empty
+      pctDecomposition.extend(List(1L, 0L, 2L, 3L))  
+      pctDecomposition.getChains.length shouldBe 3
+      pctDecomposition.getChains(0).head shouldBe Some(1L)
+      pctDecomposition.getChains(0).tail shouldBe Some(2L)      
+      pctDecomposition.getChains(1).head shouldBe Some(0L)
+      pctDecomposition.getChains(1).tail shouldBe Some(0L)
+      pctDecomposition.getChains(2).head shouldBe Some(3L)
+      pctDecomposition.getChains(2).tail shouldBe Some(3L)
+      
+      pctDecomposition.minimizeChains
+      pctDecomposition.getChains.length shouldBe 2
+      pctDecomposition.getChains(0).head shouldBe Some(1L)
+      pctDecomposition.getChains(0).tail shouldBe Some(3L)      
+      pctDecomposition.getChains(1).head shouldBe Some(0L)
+      pctDecomposition.getChains(1).tail shouldBe Some(2L)
     }    
   }
   
