@@ -46,6 +46,22 @@ class PCTStrategyTest extends WordSpec with Matchers {
         pctStrategy.getNextMessage
         
       pctStrategy.printSchedule  
-    }    
+    }
+    
+    "test3: schedule next message according to a randomly assigned priority to its corresponding chain" in {
+      val pctOptions = PCTOptions(maxMessages = 4, bugDepth = 1)
+      val pctStrategy = new PCTStrategy(pctOptions)
+      //List(message0, message1, message2, message3, message4, message5, message6, message7, message8, message9).foreach(m => m.received = false)
+              
+      //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
+      //pctStrategy.setNewMessages(Map(20L->Set(), 21L->Set(20L), 22L->Set(21L), 23L->Set(), 24L->Set(23L), 25L->Set(22L, 24L), 26L->Set(25L), 27L->Set(24L), 28L->Set(27L), 29L->Set(28L)))
+      pctStrategy.setNewMessages(Map(0L->Set(), 1L->Set(), 2L->Set(0L, 1L), 3L->Set(0L)))
+      pctStrategy.printPrioInvPoints
+      
+      for (i <- 0 until 4)
+        pctStrategy.getNextMessage
+        
+      pctStrategy.printSchedule  
+    }        
   }
 }
