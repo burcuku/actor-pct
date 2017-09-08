@@ -1,9 +1,9 @@
-package akka.dispatch
+package akka.dispatch.state
 
 import akka.actor.{ActorRef, Cell}
+import akka.dispatch.Envelope
 
 import scala.collection.{Set, mutable}
-import scala.util.control.Breaks.{break, breakable}
 
 class ActorMessagesMap {
 

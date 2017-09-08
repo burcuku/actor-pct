@@ -2,7 +2,8 @@ package akka.dispatch.io
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import CmdLineProcessorActor.GetInput
-import akka.dispatch.{ActorMessagesMap, PCTDispatcher, RequestForwarder}
+import akka.dispatch.state.ExecutionState.MessageId
+import akka.dispatch.{PCTDispatcher, RequestForwarder}
 import akka.dispatch.util.CmdLineUtils
 import protocol._
 
@@ -25,25 +26,23 @@ object CmdLineIOProvider extends IOProvider {
 // Receives user inputs and displays the received responses
 class CmdLineProcessorActor extends Actor {
 
+  val processed: Set[MessageId] = Set()
+
   override def receive: Receive = {
     // blocking wait for an input
     case GetInput =>
-      println("\nPredecessors:")
-      PCTDispatcher.getAllPredecessors.foreach(a => println(a._1 + " -> " + a._2))
-      println("\nActor messages:")
-      PCTDispatcher.getAllActorMessagesToProcess.foreach(a => println(a._1.path + " -> " + a._2))
 
       CmdLineUtils.printlnForUiInput("Please enter the next command: " +
         " \"next <index>\" to dispatch the message with id <index> OR " +
         //" \"drop <index>\" to drop the the message with id <index> OR " +
         "\"quit\" to quit. ")
 
-      val choice = CmdLineUtils.parseInput(PCTDispatcher.getAllMessagesIds.map(_.toInt), List("next", "drop", "quit"))
+      val choice = CmdLineUtils.parseInput(List("next", "drop", "quit"))
 
       choice match {
-        case ("next", Some(messageId)) =>
+        case ("next", messageId) =>
           RequestForwarder.forwardRequest(DispatchMessageRequest(messageId))
-        case ("drop", Some(messageId)) =>
+        case ("drop", messageId) =>
           RequestForwarder.forwardRequest(DropMessageRequest(messageId))
         case ("quit", _) =>
           RequestForwarder.forwardRequest(TerminateRequest)
@@ -52,11 +51,17 @@ class CmdLineProcessorActor extends Actor {
           self ! GetInput
       }
 
-    case response: Response =>
-      //println("IOProvider received response: " + response)
+    case MessagePredecessors(predecessors) =>
+      println("Predecessors: ") // MessagePredecessors(predecessors: Map[MessageId, Set[MessageId]])
+      predecessors.foreach(x => println(x._1 + " -> " + x._2))
       self ! GetInput // get next user input once the response is received
 
-    case _ => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Undefined message sent to the CmdLineProcessorActor")
+    case ErrorResponse(errorMsg) =>
+      CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, errorMsg)
+      self ! GetInput // get next user input once the response is received
+
+    case _ =>
+      CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Undefined message sent to the CmdLineProcessorActor")
   }
 }
 

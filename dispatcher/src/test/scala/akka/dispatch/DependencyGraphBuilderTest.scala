@@ -1,9 +1,10 @@
 package akka.dispatch
 
 import akka.actor.{Actor, ActorRef, ActorSystem}
-import akka.dispatch.PCTDispatcher.Message
+import akka.dispatch.state.ExecutionState.Message
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import akka.dispatch.state.{DependencyGraphBuilder => DGB}
 
 class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with ImplicitSender
   with WordSpecLike with Matchers with BeforeAndAfterAll {
@@ -130,7 +131,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
   "A dependency builder actor" must {
 
     "calculate actorProcessed correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       dependencyBuilder.calculateDependencies(programOutput1._1, programOutput1._2, programOutput1._3)
       dependencyBuilder.calculateDependencies(programOutput2._1, programOutput2._2, programOutput2._3)
@@ -178,7 +179,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
     }
 
     "calculate actorCreatedBy correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       // InitialReceived has MessageReceived(ActorRef.noSender, Envelope("", ActorRef.noSender))
       // Actors created initially in the program (not in an actor) has ActorRef.noSender=null parent
@@ -195,7 +196,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
     }
 
     "calculate actorCreatedIn correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       // InitialReceived has MessageReceived(ActorRef.noSender, Envelope("", ActorRef.noSender))
       // Actors created initially in the program (not in an actor) has ActorRef.noSender=null parent
@@ -213,44 +214,44 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
 
 
     "calculate message send happens-before constraint  correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       dependencyBuilder.calculateDependencies(programOutput1._1, programOutput1._2, programOutput1._3)
       // MessageSent(main, executeEnvelope), //1
       // MessageSent(terminator, hiEnvelope) //2
-      dependencyBuilder.messageSendCausality(1) shouldBe Set(0)
-      dependencyBuilder.messageSendCausality(2) shouldBe Set(0)
+      dependencyBuilder.messageSendCausality(1) shouldBe Set((DGB.MESSAGE_SEND, 0))
+      dependencyBuilder.messageSendCausality(2) shouldBe Set((DGB.MESSAGE_SEND, 0))
 
       dependencyBuilder.calculateDependencies(programOutput2._1, programOutput2._2, programOutput2._3)
       // MessageSent(writer, writeEnvelope), //3
       // MessageSent(terminator, executionDoneEnvelope) //4
-      dependencyBuilder.messageSendCausality(3) shouldBe Set(1)
+      dependencyBuilder.messageSendCausality(3) shouldBe Set((DGB.MESSAGE_SEND, 1))
 
       dependencyBuilder.calculateDependencies(programOutput3._1, programOutput3._2, programOutput3._3)
 
       dependencyBuilder.calculateDependencies(programOutput4._1, programOutput4._2, programOutput4._3)
       // MessageSent(writer, flushEnvelope), //5
-      dependencyBuilder.messageSendCausality(5) shouldBe Set(4)
+      dependencyBuilder.messageSendCausality(5) shouldBe Set((DGB.MESSAGE_SEND, 4))
 
       dependencyBuilder.calculateDependencies(programOutput5._1, programOutput5._2, programOutput5._3)
       // MessageSent(terminator, flushedEnvelope), //6
       // MessageSent(visitor, visitorEnvelope) //7
-      dependencyBuilder.messageSendCausality(6) shouldBe Set(5)
-      dependencyBuilder.messageSendCausality(7) shouldBe Set(5)
+      dependencyBuilder.messageSendCausality(6) shouldBe Set((DGB.MESSAGE_SEND, 5))
+      dependencyBuilder.messageSendCausality(7) shouldBe Set((DGB.MESSAGE_SEND, 5))
 
       dependencyBuilder.calculateDependencies(programOutput6._1, programOutput6._2, programOutput6._3)
       dependencyBuilder.calculateDependencies(programOutput7._1, programOutput7._2, programOutput7._3)
 
       dependencyBuilder.calculateDependencies(programOutput8._1, programOutput8._2, programOutput8._3)
       //MessageSent(main, mainEnvelope) //8
-      dependencyBuilder.messageSendCausality(8) shouldBe Set(7)
+      dependencyBuilder.messageSendCausality(8) shouldBe Set((DGB.MESSAGE_SEND, 7))
     }
 
     /**
       * If the receiver of a message mj is created in a message mi, mi -> mj
       */
     "calculate creator happens-before constraint correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       dependencyBuilder.calculateDependencies(programOutput1._1, programOutput1._2, programOutput1._3)
       // ActorCreated(main)
@@ -259,38 +260,38 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       // ActorCreated(writer),
       // MessageSent(main, executeEnvelope), //1
       // MessageSent(terminator, toTerminatorEnvelope) //2
-      dependencyBuilder.creatorCausality(1) shouldBe Set(0)
-      dependencyBuilder.creatorCausality(1) shouldBe Set(0)
+      dependencyBuilder.creatorCausality(1) shouldBe Set((DGB.CREATOR, 0))
+      dependencyBuilder.creatorCausality(1) shouldBe Set((DGB.CREATOR, 0))
 
       dependencyBuilder.calculateDependencies(programOutput2._1, programOutput2._2, programOutput2._3)
       //MessageSent(writer, writeEnvelope), //3
       //MessageSent(terminator, executionDoneEnvelope) //4
-      dependencyBuilder.creatorCausality(3) shouldBe Set(0)
-      dependencyBuilder.creatorCausality(4) shouldBe Set(0)
+      dependencyBuilder.creatorCausality(3) shouldBe Set((DGB.CREATOR, 0))
+      dependencyBuilder.creatorCausality(4) shouldBe Set((DGB.CREATOR, 0))
 
 
       dependencyBuilder.calculateDependencies(programOutput3._1, programOutput3._2, programOutput3._3)
       dependencyBuilder.calculateDependencies(programOutput4._1, programOutput4._2, programOutput4._3)
       // ActorCreated(visitor)
       // MessageSent(writer, flushEnvelope), //5
-      dependencyBuilder.creatorCausality(5) shouldBe Set(0)
+      dependencyBuilder.creatorCausality(5) shouldBe Set((DGB.CREATOR, 0))
 
       dependencyBuilder.calculateDependencies(programOutput5._1, programOutput5._2, programOutput5._3)
       //MessageSent(terminator, flushedEnvelope) //6
       //MessageSent(visitor, visitorEnvelope) //7
-      dependencyBuilder.creatorCausality(6) shouldBe Set(0)
-      dependencyBuilder.creatorCausality(7) shouldBe Set(4)
+      dependencyBuilder.creatorCausality(6) shouldBe Set((DGB.CREATOR, 0))
+      dependencyBuilder.creatorCausality(7) shouldBe Set((DGB.CREATOR, 4))
 
       dependencyBuilder.calculateDependencies(programOutput8._1, programOutput8._2, programOutput8._3)
       //MessageSent(main, mainEnvelope) //8
-      dependencyBuilder.creatorCausality(8) shouldBe Set(0)
+      dependencyBuilder.creatorCausality(8) shouldBe Set((DGB.CREATOR, 0))
     }
 
     /*
      * If a message mj is sent in a message mk on an actor A, for all the messages i,k,j processed by A before k: mi -> mj
      */
     "calculate executed-on-sender happens-before constraint correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       dependencyBuilder.calculateDependencies(programOutput1._1, programOutput1._2, programOutput1._3)
       // MessageSent(main, executeEnvelope), //1
@@ -308,7 +309,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
 
       dependencyBuilder.calculateDependencies(programOutput4._1, programOutput4._2, programOutput4._3)
       // MessageSent(writer, flushEnvelope), //5
-      dependencyBuilder.executedOnSenderCausality(5) shouldBe Set(2) // terminator processed 2 before this
+      dependencyBuilder.executedOnSenderCausality(5) shouldBe Set((DGB.EXECUTED_ON_SENDER, 2)) // terminator processed 2 before this
 
       dependencyBuilder.calculateDependencies(programOutput5._1, programOutput5._2, programOutput5._3)
       // MessageSent(terminator, flushedEnvelope), //6
@@ -325,7 +326,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
     }
 
     "calculate executed-on-creator-of-the-sender happens-before constraint correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       dependencyBuilder.calculateDependencies(programOutput1._1, programOutput1._2, programOutput1._3)
       // ActorCreated(main)
@@ -343,9 +344,9 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       //MessageSent(writer, writeEnvelope), //3
       //MessageSent(terminator, executionDoneEnvelope) //4
       // receiver of message 3: writer, writer is created by: Initial
-      dependencyBuilder.executedOnCreatorCausality(3) shouldBe Set(0)
+      dependencyBuilder.executedOnCreatorCausality(3) shouldBe Set((DGB.EXECUTED_ON_CREATOR, 0))
       // receiver of message 4: terminator, terminator is created by: Initial
-      dependencyBuilder.executedOnCreatorCausality(4) shouldBe Set(0)
+      dependencyBuilder.executedOnCreatorCausality(4) shouldBe Set((DGB.EXECUTED_ON_CREATOR, 0))
 
       // to test transitive predecessors, add more to be executed by terminator (which will create "visitor" later)
       dependencyBuilder.calculateDependencies(programOutput3._1, programOutput3._2, programOutput3._3)
@@ -354,24 +355,24 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       // ActorCreated(visitor)
       // MessageSent(writer, flushEnvelope), //5
       // receiver of message 5: writer, writer is created by: Initial
-      dependencyBuilder.executedOnCreatorCausality(5) shouldBe Set(0)
+      dependencyBuilder.executedOnCreatorCausality(5) shouldBe Set((DGB.EXECUTED_ON_CREATOR, 0))
 
       dependencyBuilder.calculateDependencies(programOutput5._1, programOutput5._2, programOutput5._3)
       //MessageSent(terminator, flushedEnvelope) //6
       //MessageSent(visitor, visitorEnvelope) //7
       // receiver of message 6: terminator, terminator is created by: Initial
-      dependencyBuilder.executedOnCreatorCausality(6) shouldBe Set(0)
+      dependencyBuilder.executedOnCreatorCausality(6) shouldBe Set((DGB.EXECUTED_ON_CREATOR, 0))
       // receiver of message 7: visitor, visitor is created by: terminator - with actor id 4 - processed before: 2
-      dependencyBuilder.executedOnCreatorCausality(7) shouldBe Set(4, 2)
+      dependencyBuilder.executedOnCreatorCausality(7) shouldBe Set((DGB.EXECUTED_ON_CREATOR, 4), (DGB.EXECUTED_ON_CREATOR, 2))
 
       dependencyBuilder.calculateDependencies(programOutput8._1, programOutput8._2, programOutput8._3)
       //MessageSent(main, mainEnvelope) //8
       // receiver of message 8: main, main is created by: Initial
-      dependencyBuilder.executedOnCreatorCausality(8) shouldBe Set(0)
+      dependencyBuilder.executedOnCreatorCausality(8) shouldBe Set((DGB.EXECUTED_ON_CREATOR, 0))
     }
 
     "calculate sender-receiver happens-before constraint correctly" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       val senderActor = TestActorRef[Dummy]
       val receiverActor = TestActorRef[Dummy]
@@ -422,7 +423,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
 
       // Sender sends envelope-1 and envelope-2 to the receiver in this order
       // These messages should be causally dependent as they have same sender and receiver
-      dependencyBuilder.senderReceiverCausality(4) shouldBe Set(2)
+      dependencyBuilder.senderReceiverCausality(4) shouldBe Set((DGB.SENDER_RECEIVER, 2))
 
       /*
         Next sequence of program events:
@@ -449,11 +450,11 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       dependencyBuilder.calculateDependencies(programOutput4._1, programOutput4._2, programOutput4._3)
       dependencyBuilder.calculateDependencies(programOutput5._1, programOutput5._2, programOutput5._3)
 
-      dependencyBuilder.senderReceiverCausality(6) shouldBe Set(4)
+      dependencyBuilder.senderReceiverCausality(6) shouldBe Set((DGB.SENDER_RECEIVER, 4))
     }
 
     "calculate the predecessors correctly for BITA scenario" in {
-      val dependencyBuilder = new DependencyGraphBuilder()
+      val dependencyBuilder = new DGB()
 
       // example in Bita paper on Fig1
       /*
@@ -530,11 +531,11 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       dependencyBuilder.calculateDependencies(programOutput6._1, programOutput6._2, programOutput6._3)
 
       // predecessors: in Bita paper on top of right column on p5
-      dependencyBuilder.causalityPredecessors(1) shouldBe Set(0) // pred of "Execute"
-      dependencyBuilder.causalityPredecessors(2) shouldBe Set(0, 1) // pred of "Write" - Set("Execute")
-      dependencyBuilder.causalityPredecessors(3) shouldBe Set(0, 1) // pred of "ActionDone" - Set("Execute")
-      dependencyBuilder.causalityPredecessors(4) shouldBe Set(0, 3) // pred of "Flush" - Set(ActionDone)
-      dependencyBuilder.causalityPredecessors(5) shouldBe Set(0, 2, 4) // pred of "Flushed" - Set(Flush, Write)
+      dependencyBuilder.causalityPredecessors(1) shouldBe Set((DGB.MESSAGE_SEND, 0), (DGB.CREATOR, 0)) // pred of "Execute"
+      dependencyBuilder.causalityPredecessors(2) shouldBe Set((DGB.MESSAGE_SEND, 1), (DGB.CREATOR, 0), (DGB.EXECUTED_ON_CREATOR, 0)) // pred of "Write" - Set("Execute")
+      dependencyBuilder.causalityPredecessors(3) shouldBe Set((DGB.MESSAGE_SEND,1), (DGB.CREATOR,0), (DGB.EXECUTED_ON_CREATOR,0)) // pred of "ActionDone" - Set("Execute")
+      dependencyBuilder.causalityPredecessors(4) shouldBe Set((DGB.MESSAGE_SEND,3), (DGB.CREATOR,0), (DGB.EXECUTED_ON_CREATOR,0)) // pred of "Flush" - Set(ActionDone)
+      dependencyBuilder.causalityPredecessors(5) shouldBe Set((DGB.MESSAGE_SEND,4), (DGB.CREATOR,0), (DGB.EXECUTED_ON_SENDER,2), (DGB.EXECUTED_ON_CREATOR,0)) // pred of "Flushed" - Set(Flush, Write)
     }
 
   }

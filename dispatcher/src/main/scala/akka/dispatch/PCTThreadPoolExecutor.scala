@@ -21,8 +21,8 @@ class PCTThreadPoolExecutor(corePoolSize: Int, maxPoolSize: Int, threadTimeout: 
 }
 
 final case class PCTThreadPoolConfig(allowCorePoolTimeout: Boolean = ThreadPoolConfig.defaultAllowCoreThreadTimeout,
-                                  corePoolSize: Int = 2, //ThreadPoolConfig.defaultCorePoolSize,
-                                  maxPoolSize: Int = 8, //ThreadPoolConfig.defaultMaxPoolSize,
+                                  corePoolSize: Int = 1, //ThreadPoolConfig.defaultCorePoolSize,
+                                  maxPoolSize: Int = 1, //ThreadPoolConfig.defaultMaxPoolSize,
                                   threadTimeout: Duration = ThreadPoolConfig.defaultTimeout,
                                   queueFactory: ThreadPoolConfig.QueueFactory = ThreadPoolConfig.linkedBlockingQueue(),
                                   rejectionPolicy: RejectedExecutionHandler = ThreadPoolConfig.defaultRejectionPolicy)

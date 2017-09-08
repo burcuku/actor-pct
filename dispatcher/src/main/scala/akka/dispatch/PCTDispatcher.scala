@@ -3,18 +3,19 @@ package akka.dispatch
 import java.util.concurrent._
 
 import akka.actor.{Actor, ActorCell, ActorInitializationException, ActorRef, ActorSystem, Cell, InternalActorRef, Props}
-import akka.dispatch.PCTDispatcher.Message
+import akka.dispatch.state.ExecutionState.{Message, MessageId}
 import akka.dispatch.io.{CmdLineIOProvider, IOProvider, PCTIOProvider}
+import akka.dispatch.state.ExecutionState
 import akka.dispatch.time.TimerActor.AdvanceTime
 import akka.dispatch.sysmsg.{NoMessage, _}
 import akka.event.Logging._
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.pattern.PromiseActorRef
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
+import protocol.{ErrorResponse, MessagePredecessors}
 import time.TimerActor
-import protocol.{Event, Events, _}
-import util.{CmdLineUtils, FileUtils, IdGenerator, ReflectionUtils}
+import util.{CmdLineUtils, DispatcherUtils, FileUtils, ReflectionUtils}
 import util.FunUtils._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -39,52 +40,26 @@ private case object EndDispatcher extends DispatcherMsg
 /**
   * To handle PCT request to dispatch the given message to its recipient actor
   */
-private case class DispatchMessageToActor(message: Message) extends DispatcherMsg
+private case class DispatchMessageToActor(id: MessageId) extends DispatcherMsg
 
 /**
   * To handle a request to drop the given message
   */
-private case class DropMessageFromActor(message: Message) extends DispatcherMsg
+private case class DropMessageFromActor(id: MessageId) extends DispatcherMsg
 
 object PCTDispatcher {
-
-  type MessageId = Long
-  case class Message(id: MessageId, receiver: ActorRef, msg: Envelope)
-
-  /**
-    * Keeps the messages sent to the actors - the messages are not delivered immediately but collected here
-    */
-  private val actorMessagesMap: ActorMessagesMap = new ActorMessagesMap() //todo revise - might not be needed for PCTDispatcher
-  private val eventBuffer: EventBuffer = new EventBuffer()
-  private var messages: Map[MessageId, Message] = Map()
-  private var processed: Set[MessageId] = Set()
-  private val idGenerator = new IdGenerator(1)
-
-  // add an initial message when dispatcher is initialized
-  // before the events generated in the beginning (not in response to the receipt of a message)
-  eventBuffer.addEvent(0L, MessageReceived(ActorRef.noSender, Envelope("", ActorRef.noSender)))
-  messages += (0L -> Message(0L, ActorRef.noSender, Envelope("", ActorRef.noSender)))
-  processed += 0L
-
-  private val dependencyGraphBuilder = new DependencyGraphBuilder()
 
   /**
     * Called when the user requests to dispatch the given message to its recipient
     * @param messageId the message to dispatch
     */
-  def dispatchMessage(messageId: MessageId): Unit = messages.get(messageId) match {
-    case Some(m) => sendToDispatcher(DispatchMessageToActor(m))
-    case None => printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
-  }
+  def dispatchMessage(messageId: MessageId): Unit = sendToDispatcher(DispatchMessageToActor(messageId))
 
   /**
     * Called when the user requests to drop the given message
     * @param messageId the message to drop
     */
-  def dropMessage(messageId: MessageId): Unit = messages.get(messageId) match {
-    case Some(m) => sendToDispatcher(DropMessageFromActor(m))
-    case None => printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
-  }
+  def dropMessage(messageId: MessageId): Unit = sendToDispatcher(DropMessageFromActor(messageId))
 
   /**
     * Called when the user requests to initiate the dispatcher
@@ -110,15 +85,21 @@ object PCTDispatcher {
   var ioProvider: IOProvider = CmdLineIOProvider
 
   /**
+    * Set the actor system used by the dispatcher
+    * (Seperated from setUp method so that assigning the system and enabling the dispatcher can be done separately
+    * e.g., when actor system is defined in a library but the dispatcher must be enabled after sending some messages)
+    * @param system
+    */
+  def setActorSystem(system: ActorSystem): Unit = actorSystem = Some(system)
+
+  /**
     * Enables dispatcher to deliver messages to the actors
     * Sets ioProvider to get inputs / write outputs
     * Is called by the app when it is done with the actor creation/initialization
-    *
-    * @param system Actor System
     */
-  def setUp(system: ActorSystem): Unit = {
-    system.dispatcher match { // check to prevent initializing while using another Dispatcher type
-      case d: PCTDispatcher =>
+  def setUp(): Unit = actorSystem match {
+      // check to prevent initializing while using another Dispatcher type
+      case Some(system) if system.dispatcher.isInstanceOf[PCTDispatcher] =>
         actorSystem = Some(system)
         helperActor = Some(system.actorOf(Props(new Actor() {
           override def receive: Receive = Actor.emptyBehavior
@@ -146,7 +127,6 @@ object PCTDispatcher {
         ioProvider.setUp(system)
 
       case _ => // do nth
-    }
   }
 
   def sendToDispatcher(msg: Any): Unit = helperActor match {
@@ -156,21 +136,11 @@ object PCTDispatcher {
 
   def printLog(logType: Int, text: String): Unit = CmdLineUtils.printLog(logType, text)
 
-  def getAllMessagesIds: Set[MessageId] = messages.keySet
+  //def getAllMessagesIds: Set[MessageId] = state.getAllMessagesIds
 
-  def getAllMessages: List[Message] = messages.values.toList.sortBy(_.id)
+  //def getAllActorMessagesToProcess: Map[ActorRef, Set[Message]] = state.getAllActorMessagesToProcess
 
-  def getActorMessages(actor: ActorRef): Set[Message] = messages.values.filter(m => m.receiver == actor).toSet
-
-  def getActorMessagesToProcess(actor: ActorRef): Set[Message] = messages.values.filter(m => m.receiver == actor && !processed.contains(m.id)).toSet
-
-  def getAllActorMessages: Map[ActorRef, Set[Message]] = actorMessagesMap.getAllActors.map(a => (a.self, getActorMessages(a.self))).toMap
-
-  def getAllActorMessagesToProcess: Map[ActorRef, Set[Message]] = actorMessagesMap.getAllActors.map(a => (a.self, getActorMessagesToProcess(a.self))).toMap
-
-  def getPredecessors(messageId: MessageId): Set[MessageId] = dependencyGraphBuilder.predecessors(messageId)
-
-  def getAllPredecessors: Set[(MessageId, Set[MessageId])] = messages.keySet.map(id => (id, dependencyGraphBuilder.predecessors(id)))
+  //def getAllPredecessors: Set[(MessageId, Set[MessageId])] = state.getAllPredecessors
 }
 
 /**
@@ -189,6 +159,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
 
   import PCTDispatcher._
 
+  val state = new ExecutionState
 
   /**
     * Handler methods run synchronously by the dispatcher to handle requests
@@ -199,7 +170,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * (which not produced in response to any actor message)
     * @return list of events generated in the initialization
     */
-  private def handleInitiate(): List[(MessageId, Event)] = eventBuffer.consumeEvents
+  private def handleInitiate(): List[(MessageId, ProgramEvent)] = state.collectEvents()
 
   /**
     * Terminates the actor system
@@ -213,16 +184,15 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * @param message Message to be dispatched
     * @return list of generated events
     */
-  def handleDispatchMessageToActor(message: Message): List[(MessageId, Event)] = actorMessagesMap.hasActor(message.receiver) match {
-    case Some(actor) if !processed.contains(message.id) =>
-      eventBuffer.addEvent(message.id, MessageReceived(actor.self, message.msg))
-      processed += message.id
+  def handleDispatchMessageToActor(message: Message): List[(MessageId, ProgramEvent)] = state.existsActor(message.receiver) match {
+    case Some(actor) if !state.isProcessed(message.id) =>
+      state.updateState(MessageReceived(actor, message.id, message.msg))
       // handle the actor message synchronously
       val receiver = actor.asInstanceOf[ActorCell]
       val mbox = receiver.mailbox
       mbox.enqueue(receiver.self, message.msg)
       processMailbox(mbox)
-      eventBuffer.consumeEvents
+      state.collectEvents()
     case Some(_) =>
       printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + message)
       List()
@@ -231,19 +201,16 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       List()
   }
 
-
   /**
     * @param message Message to be dropped
     * @return list of generated events
     */
-  def handleDropMessageFromActor(message: Message): List[(MessageId, Event)] = actorMessagesMap.hasActor(message.receiver) match {
-    case Some(actor) if !processed.contains(message.id) =>
-      eventBuffer.addEvent(message.id, MessageDropped(actor.self, message.msg))
-      processed += message.id
-      // handle the actor message synchronously
-      eventBuffer.consumeEvents
-    case Some(_) =>
-      printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + message)
+  def handleDropMessageFromActor(message: Message): List[(MessageId, ProgramEvent)] = state.existsActor(message.receiver) match {
+    case Some(actor) if !state.isProcessed(message.id) =>
+      state.updateState(MessageDropped(actor, message.id, message.msg))
+      state.collectEvents()
+    case Some(actor) =>
+      printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + id)
       List()
     case None =>
       printLog(CmdLineUtils.LOG_WARNING, "Cannot drop message: " + message + " Recipient actor cannot be found.")
@@ -274,24 +241,6 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
   }
 
   /**
-    * Calculate the dependencies of the messages generated in response to a received message
-    * @param list of events generated in response to a message
-    * @return set of dependencies (i.e. predecessors in the sense of causality of the messages) of each generated message
-    */
-  def calculateDependencies(list: List[(MessageId, Event)]): Map[MessageId, Set[MessageId]] = list match {
-    case Nil => Map()
-    case x :: xs if x._2.isInstanceOf[MessageReceived] =>
-      val receivedMessage = messages(list.head._1) // the first event is always of type MESSAGE_RECEIVED
-      val sentMessages = list.filter(_._2.isInstanceOf[MessageSent]).map(e => messages(e._1)) // ids of the sent messages
-      val createdActors = list.filter(_._2.isInstanceOf[ActorCreated]).map(_._2.asInstanceOf[ActorCreated].actor) // created actor refs
-      dependencyGraphBuilder.calculateDependencies(receivedMessage, sentMessages, createdActors)
-    case _ =>
-      // The event sequence must start with an instance of MessageReceived if it is non-empty
-      printLog(CmdLineUtils.LOG_ERROR, "Unexpected event sequence generated in response to a message.")
-      Map() // do nth
-  }
-
-  /**
     * Overriden to intercept and keep the dispatched messages
     * @param receiver   receiver of the intercepted message
     * @param invocation envelope of the intercepted message
@@ -301,22 +250,34 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     invocation match {
       // Handle Dispatcher messages
       case Envelope(msg, _) if msg.isInstanceOf[DispatcherMsg] =>  msg match {
-        case DispatchMessageToActor(message) =>
+        case DispatchMessageToActor(messageId) =>
           runOnExecutor(toRunnable(() => {
-            val events = handleDispatchMessageToActor(message)
-            ioProvider.putResponse(MessagePredecessors(calculateDependencies(events)))
+            state.getMessage(messageId) match {
+              case Some(m) =>
+                val events = handleDispatchMessageToActor(m)
+                ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+              case None =>
+                printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
+                ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
+            }
           }))
           return
-        case DropMessageFromActor(message) =>
+        case DropMessageFromActor(messageId) =>
           runOnExecutor(toRunnable(() => {
-            val events = handleDropMessageFromActor(message)
-            ioProvider.putResponse(MessagePredecessors(calculateDependencies(events)))
+            state.getMessage(messageId) match {
+              case Some(m) =>
+                val events = handleDropMessageFromActor(m)
+                ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+              case None =>
+                printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
+                ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
+            }
           }))
           return
         case InitDispatcher =>
           runOnExecutor(toRunnable(() => {
             val events = handleInitiate()
-            ioProvider.putResponse(MessagePredecessors(calculateDependencies(events)))
+            ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
           }))
           return
         case EndDispatcher =>
@@ -379,16 +340,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     }
 
     printLog(CmdLineUtils.LOG_INFO, "Intercepting msg to: " + receiver.self + " " + invocation + " " + Thread.currentThread().getName)
-
-    // Add the intercepted message to the messages map
-    val messageId = idGenerator.next
-    messages += (messageId -> Message(messageId, receiver.self, invocation))
-
-    // Add the intercepted message into the list of output events
-    eventBuffer.addEvent(messageId, MessageSent(receiver.self, invocation))
-
-    // Add the intercepted message into intercepted messages map //todo revise - may not be needed for PCTDispatcher
-    actorMessagesMap.addMessage(receiver, invocation)
+    state.updateState(MessageSent(receiver, invocation))
 
     //// Commented out the following original code to block default enqueue to the actor's mailbox
     //// mbox.enqueue(receiver.self, invocation)
@@ -426,10 +378,9 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case Terminate() =>
         CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg terminates: " + receiver.self)
         // add to the event list only if it is not a system actor
-        if (!DispatcherUtils.isSystemActor(receiver.self)) {
-          eventBuffer.addEvent(ActorDestroyed(receiver.self))
-          actorMessagesMap.removeActor(receiver)
-        }
+        if (!DispatcherUtils.isSystemActor(receiver.self))
+          state.updateState(ActorDestroyed(receiver))
+
       case Supervise(child: ActorRef, async: Boolean) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Supervise. Child: " + child)
       case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
       case Unwatch(watchee: ActorRef, watcher: ActorRef) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Unwatch. Watchee: " + watchee + " Watcher: " + watcher)
@@ -445,10 +396,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     printLog(CmdLineUtils.LOG_DEBUG, "Created mailbox for: " + actor.self + " in thread: " + Thread.currentThread().getName)
 
     // add to the event list only if it is not a system actor
-    if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ ) {
-      eventBuffer.addEvent(ActorCreated(actor.self))
-      actorMessagesMap.addActor(actor)
-    }
+    if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ )
+      state.updateState(ActorCreated(actor))
 
     new Mailbox(mailboxType.create(Some(actor.self), Some(actor.system))) with DefaultSystemMessageQueue
   }
@@ -460,13 +409,12 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     printLog(CmdLineUtils.LOG_INFO, "Shutting down.. ")
 
     FileUtils.printToFile("allEvents") { p =>
-      eventBuffer.getAllEvents.foreach(p.println)
+      state.getAllEvents.foreach(p.println)
     }
     
     FileUtils.printToFile("allMessages") { p =>
-      eventBuffer.getEvents[MessageReceived].foreach(p.println)      
+      state.getAllEvents.filter(_.isInstanceOf[MessageReceived]).foreach(p.println)
     }
-    //getAllMessages.foreach(println)
 
     super.shutdown
   }

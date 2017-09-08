@@ -1,35 +1,37 @@
-package akka.dispatch
+package akka.dispatch.state
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.dispatch.PCTDispatcher.{Message, MessageId}
+import akka.actor.ActorRef
+import akka.dispatch.state.ExecutionState.{Message, MessageId}
 
 /**
   * Maintains the dependencies between the messages of a program
   */
 class DependencyGraphBuilder {
+  import DependencyGraphBuilder._
+
   /**
     *  Causality constraints (the key is causally dependent on the set of the values):
     */
-  private var messageSendCausalityMap: Map[MessageId, Set[MessageId]] = Map()
-  private var creatorCausalityMap: Map[MessageId, Set[MessageId]] = Map()
-  private var executedOnSenderCausalityMap: Map[MessageId, Set[MessageId]] = Map()
-  private var executedOnCreatorCausalityMap: Map[MessageId, Set[MessageId]] = Map()
+  private var messageSendCausalityMap: Map[MessageId, Set[Dependency]] = Map()
+  private var creatorCausalityMap: Map[MessageId, Set[Dependency]] = Map()
+  private var executedOnSenderCausalityMap: Map[MessageId, Set[Dependency]] = Map()
+  private var executedOnCreatorCausalityMap: Map[MessageId, Set[Dependency]] = Map()
 
   /**
     *  Sender-receiver constraints
     */
-  private var senderReceiverCausalityMap: Map[MessageId, Set[MessageId]] = Map()
+  private var senderReceiverCausalityMap: Map[MessageId, Set[Dependency]] = Map()
 
   /**
     *  Causality predecessors of a message
     */
-  def causalityPredecessors(id: MessageId): Set[MessageId] = (messageSendCausalityMap.getOrElse(id, Set()) ++ creatorCausalityMap.getOrElse(id, Set())
+  def causalityPredecessors(id: MessageId): Set[Dependency] = (messageSendCausalityMap.getOrElse(id, Set()) ++ creatorCausalityMap.getOrElse(id, Set())
     ++ executedOnSenderCausalityMap.getOrElse(id, Set()) ++ executedOnCreatorCausalityMap.getOrElse(id, Set()))
 
   /**
     *  Predecessors of a message: union of all causality + sender-receiver constraints
     */
-  def predecessors(id: MessageId): Set[MessageId] = causalityPredecessors(id) ++ senderReceiverCausalityMap.getOrElse(id, Set())
+  def predecessors(id: MessageId): Set[Dependency] = causalityPredecessors(id) ++ senderReceiverCausalityMap.getOrElse(id, Set())
 
   /**
     *  Helper structures
@@ -47,7 +49,7 @@ class DependencyGraphBuilder {
     * @param cause The message received and processed
     * @param dependent The message created when cause is processed
     */
-  private def addMessageSendCausality(cause: Message, dependent: Message): Unit = messageSendCausalityMap += (dependent.id -> Set(cause.id))
+  private def addMessageSendCausality(cause: Message, dependent: Message): Unit = messageSendCausalityMap += (dependent.id -> Set((MESSAGE_SEND, cause.id)))
 
   /**
     * If the receiver of a message mj is created in a message mi, mi -> mj
@@ -55,7 +57,7 @@ class DependencyGraphBuilder {
     * @param dependent The message created when cause is processed
     */
   private def addCreatorHBCausality(cause: Message, dependent: Message): Unit = actorCreatedInMap.get(dependent.receiver) match {
-    case Some(messageThatCreatedReceiver) => creatorCausalityMap += (dependent.id -> Set(messageThatCreatedReceiver.id))
+    case Some(messageThatCreatedReceiver) => creatorCausalityMap += (dependent.id -> Set((CREATOR, messageThatCreatedReceiver.id)))
     case None => // do nth
   }
 
@@ -64,8 +66,10 @@ class DependencyGraphBuilder {
     * @param cause The message received and processed
     * @param dependent The message created when cause is processed
     */
-  private def addExecutedOnSenderCausality(cause: Message, dependent: Message): Unit =
-    executedOnSenderCausalityMap += (dependent.id -> actorProcessedMap.getOrElse(cause.receiver, Set()).map(_.id))
+  private def addExecutedOnSenderCausality(cause: Message, dependent: Message): Unit = {
+    val msgsExecutedOnSender: Set[Dependency] = actorProcessedMap.getOrElse(cause.receiver, Set()).map(_.id).map(x => (EXECUTED_ON_SENDER, x))
+    executedOnSenderCausalityMap += (dependent.id -> msgsExecutedOnSender)
+  }
 
   /**
     * If the receiver of a message mj is created in a message mk on an actor A, for all the messages i<k<j processed by A before k: mi -> mj
@@ -74,7 +78,8 @@ class DependencyGraphBuilder {
     */
   private def addExecutedOnCreatorCausality(cause: Message, dependent: Message): Unit = actorCreatedByMap.get(dependent.receiver) match {
     case Some(actorThatCreatedReceiver) =>
-      executedOnCreatorCausalityMap += (dependent.id -> actorProcessedMap.getOrElse(actorThatCreatedReceiver, Set()).map(_.id))
+      val msgsExecutedOnCreator: Set[Dependency] = actorProcessedMap.getOrElse(actorThatCreatedReceiver, Set()).map(_.id).map(x => (EXECUTED_ON_CREATOR, x))
+      executedOnCreatorCausalityMap += (dependent.id -> msgsExecutedOnCreator)
     case None => // do nth
   }
 
@@ -90,7 +95,7 @@ class DependencyGraphBuilder {
       messagesSentByMap.getOrElse(sender, List()).find(m => m.receiver == receiver && m.msg.sender == sender)
 
     lastMessageFrom(cause.receiver, dependent.receiver) match {
-      case Some(message) => senderReceiverCausalityMap += (dependent.id -> Set(message.id))
+      case Some(message) => senderReceiverCausalityMap += (dependent.id -> Set((SENDER_RECEIVER, message.id)))
       case None => // do nth
     }
   }
@@ -103,7 +108,7 @@ class DependencyGraphBuilder {
     * @param created the list of actors created during the processing of "received"
     * @return predecessors of thesent messages
     */
-  def calculateDependencies (received: Message, sent: List[Message], created: List[ActorRef]): Map[MessageId, Set[MessageId]] = {
+  def calculateDependencies (received: Message, sent: List[Message], created: List[ActorRef]): Map[MessageId, Set[Dependency]] = {
     // update creation helper structures before forming hb relations
     created.foreach(newActor => {
       actorCreatedInMap += newActor -> received
@@ -132,11 +137,11 @@ class DependencyGraphBuilder {
   def actorCreatedIn(actor: ActorRef): Message = actorCreatedInMap(actor)
   def messagesSentBy(actor: ActorRef): List[Message] = messagesSentByMap(actor)
 
-  def messageSendCausality(id: MessageId): Set[MessageId] = messageSendCausalityMap(id)
-  def creatorCausality(id: MessageId): Set[MessageId] = creatorCausalityMap(id)
-  def executedOnSenderCausality(id: MessageId): Set[MessageId] = executedOnSenderCausalityMap(id)
-  def executedOnCreatorCausality(id: MessageId): Set[MessageId] = executedOnCreatorCausalityMap(id)
-  def senderReceiverCausality(id: MessageId): Set[MessageId] = senderReceiverCausalityMap(id)
+  def messageSendCausality(id: MessageId): Set[Dependency] = messageSendCausalityMap(id)
+  def creatorCausality(id: MessageId): Set[Dependency] = creatorCausalityMap(id)
+  def executedOnSenderCausality(id: MessageId): Set[Dependency] = executedOnSenderCausalityMap(id)
+  def executedOnCreatorCausality(id: MessageId): Set[Dependency] = executedOnCreatorCausalityMap(id)
+  def senderReceiverCausality(id: MessageId): Set[Dependency] = senderReceiverCausalityMap(id)
 
   def printMaps(): Unit = {
     print("\nActorCreatedBy: \n")
@@ -150,4 +155,14 @@ class DependencyGraphBuilder {
     print("\nSender-receiver: \n")
     senderReceiverCausalityMap.foreach(x => println(x._1 + " -> " + x._2))
   }
+}
+
+object DependencyGraphBuilder {
+  type Dependency = (String, MessageId)
+
+  val MESSAGE_SEND = "MESSAGE_SEND"
+  val CREATOR = "CREATOR"
+  val EXECUTED_ON_SENDER = "EXECUTED_ON_SENDER"
+  val EXECUTED_ON_CREATOR = "EXECUTED_ON_CREATOR"
+  val SENDER_RECEIVER = "SENDER_RECEIVER"
 }

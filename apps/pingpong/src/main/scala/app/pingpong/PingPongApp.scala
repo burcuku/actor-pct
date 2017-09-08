@@ -14,8 +14,8 @@ object PingPongApp extends App {
   pingActor1 ! PingActor.Initialize
   pingActor2 ! PingActor.Initialize
 
-  // Enable the LoggingDispatcher to deliver messages
-  PCTDispatcher.setUp(system)
+  PCTDispatcher.setActorSystem(system)
+  PCTDispatcher.setUp()
   system.awaitTermination()
 }
 

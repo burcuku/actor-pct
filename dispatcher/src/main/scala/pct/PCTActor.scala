@@ -2,7 +2,8 @@ package pct
 
 import akka.actor.{Actor, Props}
 import protocol._
-import akka.dispatch.{RequestForwarder, DispatcherUtils}
+import akka.dispatch.RequestForwarder
+import akka.dispatch.util.DispatcherUtils
 import com.typesafe.config.ConfigFactory
 
 class PCTActor extends Actor {

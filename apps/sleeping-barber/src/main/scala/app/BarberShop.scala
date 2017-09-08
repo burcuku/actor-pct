@@ -20,5 +20,6 @@ object BarberShop extends App {
     c ! EntersShop
   }
 
-  PCTDispatcher.setUp(system)
+  PCTDispatcher.setActorSystem(system)
+  PCTDispatcher.setUp()
 }

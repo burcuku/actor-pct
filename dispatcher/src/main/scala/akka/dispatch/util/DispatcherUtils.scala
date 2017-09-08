@@ -1,6 +1,6 @@
-package akka.dispatch
+package akka.dispatch.util
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.ActorRef
 
 object DispatcherUtils {
   val dispatcherConfigFile: String = "dispatcher.conf"

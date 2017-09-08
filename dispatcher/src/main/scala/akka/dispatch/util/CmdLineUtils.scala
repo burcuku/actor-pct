@@ -6,47 +6,21 @@ import scala.collection.immutable.List
 
 object CmdLineUtils {
 
-  def parseInput(set: Set[Int], allowedStrs: List[String]): (String, Option[Int]) = {
+  /** Parser for the user input to CmdLineIO **/
+  def parseInput(allowedStrs: List[String]): (String, Int) = {
     val line = Console.in.readLine().split(" ")
 
     if (line.isEmpty || !allowedStrs.contains(line(0))) {
       println("Wrong input, try again. ")
-      return parseInput(set, allowedStrs)
+      return parseInput(allowedStrs)
     }
 
-    if (line(0).equalsIgnoreCase("start") || line(0).equalsIgnoreCase("quit")) (line(0), None)
+    if (line(0).equalsIgnoreCase("start") || line(0).equalsIgnoreCase("quit")) (line(0), 0)
     else if (line.size != 2 || !line(1).charAt(0).isDigit) {
       println("Wrong input, try again. ")
-      parseInput(set, allowedStrs)
-    }
-    else if (!set.contains(line(1).toInt)) {
-      println("Wrong integer input, try again. ")
-      parseInput(set, allowedStrs)
-    }
-    else {
-      (line(0), Some(line(1).toInt))
-    }
-  }
-
-  def parseInput(range: Range = Range(Int.MinValue, Int.MaxValue), allowedStrs: List[String]): (String, Option[Int]) = {
-    val line = Console.in.readLine().split(" ")
-
-    if (line.isEmpty || !allowedStrs.contains(line(0))) {
-      println("Wrong input, try again. ")
-      return parseInput(range, allowedStrs)
-    }
-
-    if (line(0).equalsIgnoreCase("start") || line(0).equalsIgnoreCase("quit")) (line(0), None)
-    else if (line.size != 2 || !line(1).charAt(0).isDigit) {
-      println("Wrong input, try again. ")
-      parseInput(range, allowedStrs)
-    }
-    else if (line(1).toInt < range.start || line(1).toInt > range.end) {
-      println("Wrong integer input, try again. ")
-      parseInput(range, allowedStrs)
-    }
-    else {
-      (line(0), Some(line(1).toInt))
+      parseInput(allowedStrs)
+    } else {
+      (line(0), line(1).toInt)
     }
   }
 
