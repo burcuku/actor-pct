@@ -1,7 +1,7 @@
 package akka.dispatch.state
 
 import akka.dispatch.ProgramEvent
-import akka.dispatch.state.ExecutionState.MessageId
+import akka.dispatch.state.Messages.MessageId
 
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag

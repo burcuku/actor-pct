@@ -2,8 +2,8 @@ package akka.dispatch.io
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import CmdLineProcessorActor.GetInput
-import akka.dispatch.state.ExecutionState.MessageId
-import akka.dispatch.{PCTDispatcher, RequestForwarder}
+import akka.dispatch.state.Messages.MessageId
+import akka.dispatch.RequestForwarder
 import akka.dispatch.util.CmdLineUtils
 import protocol._
 

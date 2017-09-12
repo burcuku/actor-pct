@@ -1,7 +1,7 @@
 package akka.dispatch.state
 
 import akka.actor.ActorRef
-import akka.dispatch.state.ExecutionState.{Message, MessageId}
+import akka.dispatch.state.Messages.{Message, MessageId}
 
 /**
   * Maintains the dependencies between the messages of a program
@@ -92,7 +92,7 @@ class DependencyGraphBuilder {
   private def addSenderReceiverCausality(cause: Message, dependent: Message): Unit = {
 
     def lastMessageFrom(sender: ActorRef, receiver: ActorRef): Option[Message] =
-      messagesSentByMap.getOrElse(sender, List()).find(m => m.receiver == receiver && m.msg.sender == sender)
+      messagesSentByMap.getOrElse(sender, List()).find(m => m.receiver == receiver && m.envelope.sender == sender)
 
     lastMessageFrom(cause.receiver, dependent.receiver) match {
       case Some(message) => senderReceiverCausalityMap += (dependent.id -> Set((SENDER_RECEIVER, message.id)))

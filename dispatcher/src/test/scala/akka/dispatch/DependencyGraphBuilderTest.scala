@@ -1,7 +1,7 @@
 package akka.dispatch
 
 import akka.actor.{Actor, ActorRef, ActorSystem}
-import akka.dispatch.state.ExecutionState.Message
+import akka.dispatch.state.Messages.Message
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.dispatch.state.{DependencyGraphBuilder => DGB}

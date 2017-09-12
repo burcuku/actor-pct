@@ -1,18 +1,18 @@
 package akka.dispatch.state
 
 import akka.actor.{ActorRef, Cell}
-import akka.dispatch.Envelope
+import akka.dispatch.state.Messages.MessageId
 
 import scala.collection.{Set, mutable}
 
-class ActorMessagesMap {
+class ActorMessagesMap(messages: Messages) {
 
-  private var actorMessages = mutable.HashMap[Cell, List[Envelope]]()
+  private var actorMessages = mutable.HashMap[Cell, List[MessageId]]()
 
   def numActors: Int = actorMessages.keySet.size
 
-  def addMessage(actor: Cell, msg: Envelope): Unit = {
-    val msgs: List[Envelope] = actorMessages.getOrElse(actor, List[Envelope]())
+  def addMessage(actor: Cell, msg: MessageId): Unit = {
+    val msgs: List[MessageId] = actorMessages.getOrElse(actor, List[MessageId]())
     actorMessages += (actor -> (msgs :+ msg) )
   }
 
@@ -45,28 +45,30 @@ class ActorMessagesMap {
     actorMessages.keySet
   }
 
-  def getMessage(receiverId: String, senderId: String, message: Any): Option[Envelope] = getActor(receiverId) match {
+  def getAllMessages(actor: Cell): Option[List[MessageId]] = actorMessages.get(actor)
+
+  def getMessage(receiverId: String, senderId: String, message: Any): Option[MessageId] = getActor(receiverId) match {
     case Some(receiver) => getMessage(receiver, senderId, message)
     case None => throw new Exception("ActorMessagesMap - No such receiver actor")
   }
 
-  def getMessage(receiver: Cell, senderId: String, message: Any): Option[Envelope] = {
-    def getMessage(list: List[Envelope]): Option[Envelope] = list match {
-      case x :: xs if x.sender.path.toString.equals(senderId) && x.message.equals(message) => Some(x)
+  def getMessage(receiver: Cell, senderId: String, message: Any): Option[MessageId] = {
+    def getMessage(list: List[MessageId]): Option[MessageId] = list match {
+      case x :: xs if messages.get(x).envelope.sender.path.toString.equals(senderId) && messages.get(x).envelope.message.equals(message) => Some(x)
       case x :: xs => getMessage(xs)
       case Nil => None
     }
     getMessage(actorMessages(receiver))
   }
 
-  def removeMessage(receiverId: String, senderId: String, message: Any): Option[Envelope] = getActor(receiverId) match {
+  def removeMessage(receiverId: String, senderId: String, message: Any): Option[MessageId] = getActor(receiverId) match {
     case Some(receiver) => removeMessage(receiver, senderId, message)
     case None => throw new Exception("ActorMessagesMap - No such receiver actor")
   }
 
-  def removeMessage(receiver: Cell, senderId: String, message: Any): Option[Envelope] = {
-    def removeMessage(list: List[Envelope], acc: List[Envelope]): (Option[Envelope], List[Envelope]) = list match {
-      case x :: xs if x.sender.path.toString.equals(senderId) && x.message.equals(message) => (Some(x), acc ++ xs)
+  def removeMessage(receiver: Cell, senderId: String, message: Any): Option[MessageId] = {
+    def removeMessage(list: List[MessageId], acc: List[MessageId]): (Option[MessageId], List[MessageId]) = list match {
+      case x :: xs if messages.get(x).envelope.sender.path.toString.equals(senderId) && messages.get(x).envelope.message.equals(message) => (Some(x), acc ++ xs)
       case x :: xs => removeMessage(xs, acc :+ x)
       case Nil => (None, acc)
     }
@@ -91,7 +93,7 @@ class ActorMessagesMap {
     }
   }
 
-  def removeHeadMessage(actor: Cell): Option[Envelope] = {
+  def removeHeadMessage(actor: Cell): Option[MessageId] = {
     actorMessages.get(actor) match {
       case None | Some(Nil) => None
       case Some(msgList) =>
@@ -99,6 +101,8 @@ class ActorMessagesMap {
         Some(msgList.head)
     }
   }
+
+
 
   def hasActor(actorId: ActorRef): Option[Cell] = {
     def helper(actors: List[Cell]): Option[Cell] = actors match {
@@ -122,28 +126,28 @@ class ActorMessagesMap {
     case None => true // must not hit here
   }
 
-  def toMapWithActorRef: mutable.HashMap[ActorRef, List[Envelope]] = {
+  def toMapWithActorRef: mutable.HashMap[ActorRef, List[MessageId]] = {
     actorMessages.map(a => (a._1.self, a._2)).clone()
   }
 
-  def toList: List[(Cell, List[Envelope])] = {
+  def toList: List[(Cell, List[MessageId])] = {
     actorMessages.toList
   }
 
-  def toListWithActorCell: List[(Cell, List[Envelope])] = {
-    var list: List[(Cell, List[Envelope])] = List()
+  def toListWithActorCell: List[(Cell, List[MessageId])] = {
+    var list: List[(Cell, List[MessageId])] = List()
     actorMessages.foreach(a => list = list :+ a)
     list.sortBy(_._1.self.toString()) // costly but easier to manage user input
   }
 
-  def toListWithActorRef: List[(ActorRef, List[Envelope])] = {
-    var list: List[(ActorRef, List[Envelope])] = List()
+  def toListWithActorRef: List[(ActorRef, List[MessageId])] = {
+    var list: List[(ActorRef, List[MessageId])] = List()
     actorMessages.foreach(a => list = list :+ (a._1.self, a._2))
     list.sortBy(_._1.toString()) // costly but easier to manage user input
   }
 
-  def toListWithActorPath: List[(String, List[Envelope])] = {
-    var list: List[(String, List[Envelope])] = List()
+  def toListWithActorPath: List[(String, List[MessageId])] = {
+    var list: List[(String, List[MessageId])] = List()
     actorMessages.foreach(a => list = list :+ (a._1.self.path.toString, a._2))
     list.sortBy(_._1.toString()) // costly but easier to manage user input
   }

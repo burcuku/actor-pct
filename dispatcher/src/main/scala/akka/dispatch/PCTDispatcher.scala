@@ -3,9 +3,9 @@ package akka.dispatch
 import java.util.concurrent._
 
 import akka.actor.{Actor, ActorCell, ActorInitializationException, ActorRef, ActorSystem, Cell, InternalActorRef, Props}
-import akka.dispatch.state.ExecutionState.{Message, MessageId}
-import akka.dispatch.io.{CmdLineIOProvider, IOProvider, PCTIOProvider}
+import akka.dispatch.io.{CmdLineIOProvider, IOProvider, PCTIOProvider, RandomExecProvider}
 import akka.dispatch.state.ExecutionState
+import akka.dispatch.state.Messages.{Message, MessageId}
 import akka.dispatch.time.TimerActor.AdvanceTime
 import akka.dispatch.sysmsg.{NoMessage, _}
 import akka.event.Logging._
@@ -119,6 +119,9 @@ object PCTDispatcher {
           case "PCT" =>
             printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
             ioProvider = PCTIOProvider
+          case "RANDOM" =>
+            printLog(CmdLineUtils.LOG_INFO, "Input choice: Naive random")
+            ioProvider = RandomExecProvider
           case _ =>
             printLog(CmdLineUtils.LOG_INFO, "Default input choice: Command line")
             ioProvider = CmdLineIOProvider
@@ -186,11 +189,11 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   def handleDispatchMessageToActor(message: Message): List[(MessageId, ProgramEvent)] = state.existsActor(message.receiver) match {
     case Some(actor) if !state.isProcessed(message.id) =>
-      state.updateState(MessageReceived(actor, message.id, message.msg))
+      state.updateState(MessageReceived(actor, message.id, message.envelope))
       // handle the actor message synchronously
       val receiver = actor.asInstanceOf[ActorCell]
       val mbox = receiver.mailbox
-      mbox.enqueue(receiver.self, message.msg)
+      mbox.enqueue(receiver.self, message.envelope)
       processMailbox(mbox)
       state.collectEvents()
     case Some(_) =>
@@ -207,7 +210,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   def handleDropMessageFromActor(message: Message): List[(MessageId, ProgramEvent)] = state.existsActor(message.receiver) match {
     case Some(actor) if !state.isProcessed(message.id) =>
-      state.updateState(MessageDropped(actor, message.id, message.msg))
+      state.updateState(MessageDropped(actor, message.id, message.envelope))
       state.collectEvents()
     case Some(actor) =>
       printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + id)
@@ -252,25 +255,23 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case Envelope(msg, _) if msg.isInstanceOf[DispatcherMsg] =>  msg match {
         case DispatchMessageToActor(messageId) =>
           runOnExecutor(toRunnable(() => {
-            state.getMessage(messageId) match {
-              case Some(m) =>
-                val events = handleDispatchMessageToActor(m)
-                ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
-              case None =>
-                printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
-                ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
+            if(state.existsMessage(messageId)){
+              val events = handleDispatchMessageToActor(state.getMessage(messageId))
+              ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+            } else {
+              printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
+              ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
             }
           }))
           return
         case DropMessageFromActor(messageId) =>
           runOnExecutor(toRunnable(() => {
-            state.getMessage(messageId) match {
-              case Some(m) =>
-                val events = handleDropMessageFromActor(m)
-                ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
-              case None =>
-                printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
-                ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
+            if(state.existsMessage(messageId)) {
+              val events = handleDropMessageFromActor(state.getMessage(messageId))
+              ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+            } else {
+              printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
+              ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
             }
           }))
           return
@@ -416,6 +417,15 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       state.getAllEvents.filter(_.isInstanceOf[MessageReceived]).foreach(p.println)
     }
 
+    FileUtils.printToFile("dependencies") { p =>
+      state.getAllPredecessorsWithDepType.foreach(x => {
+        val dependencies = x._2
+        p.print(x._1 + " -> ")
+        dependencies.foreach(d => p.print(d._2 + " "))
+        p.println()
+      })
+
+    }
     super.shutdown
   }
 }
