@@ -1,16 +1,18 @@
-package pct
-
+package pct.bm
 
 import com.typesafe.scalalogging.LazyLogging
-import scala.util.Random
+import pct.{MessageId, PCTOptions, PCTScheduler}
+
 import scala.collection.mutable
+import scala.util.Random
 
 
-class PCTStrategy(options: PCTOptions) extends LazyLogging {
+class PCTSchedulerBM(options: PCTOptions) extends PCTScheduler with LazyLogging {
   private var msgIndex: Int = 0
   private val randInt = new Random //new Random(options.randomSeed)
 
   private val pctDecomposition = new PCTDecomposition(options)
+  addNewMessages(Map(0L->Set()))
   /*private val prioInvPoints: List[Int] = (0 until options.bugDepth)
     .map(i => randInt.nextInt(options.maxMessages))
     .toSet*/  
@@ -45,7 +47,7 @@ class PCTStrategy(options: PCTOptions) extends LazyLogging {
     schedule.foreach(id => println(id))
   }
   
-  def setNewMessages(predecessors: Map[MessageId, Set[MessageId]]) = {
+  def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]) = {
     logPredecessors(predecessors)
     pctDecomposition.putMessages(predecessors)
     pctDecomposition.extend(predecessors.keys.toList)
@@ -66,4 +68,6 @@ class PCTStrategy(options: PCTOptions) extends LazyLogging {
     }    
     nextId
   }
+
+  def getSchedule: List[MessageId] = schedule.toList
 }

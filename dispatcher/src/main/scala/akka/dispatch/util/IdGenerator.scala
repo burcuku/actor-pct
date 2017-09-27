@@ -5,4 +5,5 @@ import java.util.concurrent.atomic.AtomicLong
 class IdGenerator(initial: Long = 0L) {
   private val n = new AtomicLong(initial)
   def next: Long = n.getAndIncrement()
+  def get: Long = n.get()
 }

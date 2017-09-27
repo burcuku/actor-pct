@@ -1,4 +1,6 @@
-package pct
+package pct.bm
+
+import pct.{Message, MessageId}
 
 import scala.annotation.tailrec
 import scala.collection.mutable

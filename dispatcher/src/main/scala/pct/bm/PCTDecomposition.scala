@@ -1,8 +1,10 @@
-package pct
+package pct.bm
 
+import pct._
+
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Random
-import scala.annotation.tailrec
 
 class PCTDecomposition(options: PCTOptions) {
   type ReducingSeq = Tuple3[MessageId, MessageId, Map[MessageId, (MessageId, MessageId)]]

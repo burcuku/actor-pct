@@ -412,20 +412,22 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     FileUtils.printToFile("allEvents") { p =>
       state.getAllEvents.foreach(p.println)
     }
-    
-    FileUtils.printToFile("allMessages") { p =>
-      state.getAllEvents.filter(_.isInstanceOf[MessageReceived]).foreach(p.println)
-    }
 
-    FileUtils.printToFile("dependencies") { p =>
+    val receivedMsgs = state.getAllEvents.filter(_.isInstanceOf[MessageReceived])
+      .map(_.asInstanceOf[MessageReceived]).tail //remove the initial msg with empty sender/receiver
+
+    FileUtils.printToFile("dependencies") { p => {
       state.getAllPredecessorsWithDepType.foreach(x => {
         val dependencies = x._2
         p.print(x._1 + " -> ")
         dependencies.foreach(d => p.print(d._2 + " "))
         p.println()
       })
+      receivedMsgs.foreach( x =>
+        p.println(x.id + "  Receiver: " + x.receiver.self.path.name + "  Sender: " + x.msg.sender.path.name + "  Payload: " + x.msg.message)
+      )
+    }}
 
-    }
     super.shutdown
   }
 }

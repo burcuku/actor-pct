@@ -1,7 +1,7 @@
-package pct
+package pct.bm
 
 import org.scalatest.{Matchers, WordSpec}
-import scala.collection.mutable
+import pct.PCTOptions
 
 class PCTDecompositionTest extends WordSpec with Matchers {
 

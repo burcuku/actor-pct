@@ -1,6 +1,7 @@
-package pct
+package pct.bm
 
 import org.scalatest.{FlatSpec, Matchers}
+import pct.Message
 
 class MessagesTest extends FlatSpec with Matchers {
 

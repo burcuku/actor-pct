@@ -1,4 +1,6 @@
-package pct
+package pct.bm
+
+import pct.MessageId
 
 import scala.collection.mutable
 
