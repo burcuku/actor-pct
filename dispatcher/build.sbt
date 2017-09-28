@@ -3,8 +3,10 @@ name := """actor-pct"""
 organization := "com.pct"
 version := "1.0"
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.11.0"
 publishMavenStyle := true
+
+isSnapshot := true
 
 resolvers ++= Seq("sonatype-snapshots" at "https://oss.sonatype.org/content/repositories/snapshots")
 

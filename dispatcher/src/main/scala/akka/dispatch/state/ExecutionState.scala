@@ -5,7 +5,7 @@ import akka.dispatch.PCTDispatcher.printLog
 import akka.dispatch._
 import akka.dispatch.state.DependencyGraphBuilder.Dependency
 import akka.dispatch.state.Messages.{Message, MessageId}
-import akka.dispatch.util.CmdLineUtils
+import akka.dispatch.util.{CmdLineUtils, ReflectionUtils}
 
 class ExecutionState {
 
@@ -20,8 +20,8 @@ class ExecutionState {
 
   // add an initial message when dispatcher is initialized
   // before the events generated in the beginning (not in response to the receipt of a message)
-  eventBuffer.addEvent(0L, MessageReceived(/*no cell*/null, 0L, Envelope("", ActorRef.noSender)))
-  messages.addMessage(ActorRef.noSender, Envelope("", ActorRef.noSender))
+  eventBuffer.addEvent(0L, MessageReceived(/*no cell*/null, 0L, ReflectionUtils.createNewEnvelope("", ActorRef.noSender)))
+  messages.addMessage(ActorRef.noSender, ReflectionUtils.createNewEnvelope("", ActorRef.noSender))
 
   private val dependencyGraphBuilder = new DependencyGraphBuilder()
 

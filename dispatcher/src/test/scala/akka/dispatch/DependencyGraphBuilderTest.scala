@@ -5,6 +5,7 @@ import akka.dispatch.state.Messages.Message
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.dispatch.state.{DependencyGraphBuilder => DGB}
+import akka.dispatch.util.ReflectionUtils
 
 class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with ImplicitSender
   with WordSpecLike with Matchers with BeforeAndAfterAll {
@@ -16,14 +17,15 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
   private val env = TestActorRef[Dummy]
   private val visitor = TestActorRef[Dummy]
 
-  private val executeEnvelope = Envelope("Execute", env)
-  private val writeEnvelope = Envelope("Write", main)
-  private val actionDoneEnvelope = Envelope("ActionDone", main)
-  private val flushEnvelope = Envelope("Flush", terminator)
-  private val flushedEnvelope = Envelope("Flushed", writer)
-  private val visitorEnvelope = Envelope("VisitorMsg", writer)
-  private val mainEnvelope = Envelope("MainMsg", visitor)
-  private val toTerminatorEnvelope = Envelope("TerminatorGetsBeforeTerminateMsg", main)
+  private val executeEnvelope = ReflectionUtils.createNewEnvelope("Execute", env)
+  private val writeEnvelope = ReflectionUtils.createNewEnvelope("Write", main)
+  private val actionDoneEnvelope = ReflectionUtils.createNewEnvelope("ActionDone", main)
+  private val flushEnvelope = ReflectionUtils.createNewEnvelope("Flush", terminator)
+  private val flushedEnvelope = ReflectionUtils.createNewEnvelope("Flushed", writer)
+  private val visitorEnvelope = ReflectionUtils.createNewEnvelope("VisitorMsg", writer)
+  private val mainEnvelope = ReflectionUtils.createNewEnvelope("MainMsg", visitor)
+  private val toTerminatorEnvelope = ReflectionUtils.createNewEnvelope("TerminatorGetsBeforeTerminateMsg", main)
+
 
   // input to dependency graph builder:
   // (received: Message, sent: List[Message], created: List[ActorRef])
@@ -36,7 +38,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
     MessageSent(terminator, toTerminatorEnvelope) //2
   */
   val programOutput1: (Message, List[Message], List[ActorRef]) = (
-    Message(0L, ActorRef.noSender, Envelope("", ActorRef.noSender)),
+    Message(0L, ActorRef.noSender, ReflectionUtils.createNewEnvelope("", ActorRef.noSender)),
     List(Message(1L, main, executeEnvelope), Message(2L, terminator, toTerminatorEnvelope)),
     List(main, executor, terminator, writer)
   )
