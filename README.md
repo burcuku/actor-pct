@@ -23,6 +23,7 @@ Build the project and publish its libraries locally:
 cd dispatcher
 sbt compile
 sbt publishLocal
+sbt publishM2  // to use in the Maven projects
 ```
 
 
