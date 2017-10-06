@@ -10,7 +10,7 @@ import pct.bm.PCTSchedulerBM
 class PCTActor extends Actor with LazyLogging {
   private val pctOptions = PCTOptions(randomSeed = System.currentTimeMillis(), maxMessages = Options.maxMessages, bugDepth = Options.bugDepth)
   private val pctScheduler = if(Options.algorithm.equals("AG")) new PCTSchedulerAG(pctOptions) else new PCTSchedulerBM(pctOptions)
-  logger.info(pctOptions.toString)
+  logger.warn(pctOptions.toString)
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation

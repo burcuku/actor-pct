@@ -1,7 +1,7 @@
 package pct.ag
 
 import akka.dispatch.util.IdGenerator
-import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.LazyLogging
 import pct.{ChainId, MessageId}
 
 //todo consider updating List to Vector
@@ -14,11 +14,10 @@ object ChainPartitioner {
   type Partitioning = List[BSet]
 }
 
-class ChainPartitioner {
+class ChainPartitioner extends LazyLogging {
 
   import ChainPartitioner._
   val idGen = new IdGenerator(0)
-  val logger = Logger("ALG")
 
   var partitioning: Partitioning = List()
 
@@ -44,7 +43,6 @@ class ChainPartitioner {
           // The element fits in more than one chains, append to one of them and update B(i-1) and B(i)
           case c :: xs => // more than one chains, need to swap
             val leftChains = partition(index - 1)
-            println("Changing: " + (index-1) + " and " + index)
             partition.updated(index-1, bset - c).updated(index, leftChains + appendToChain(elem, c))
         }
       }
