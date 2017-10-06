@@ -8,3 +8,5 @@ target/
 # Mac
 *.DS_Store
 
+*.txt
+*.iml
