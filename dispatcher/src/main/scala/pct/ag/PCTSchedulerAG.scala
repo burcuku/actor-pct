@@ -1,12 +1,13 @@
 package pct.ag
 
+import com.typesafe.scalalogging.LazyLogging
 import pct.ag.ChainPartitioner.Node
 import pct.{ChainId, MessageId, PCTOptions, PCTScheduler}
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler {
+class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLogging {
   private val randInt = new Random(pctOptions.randomSeed)
   private val HIGH = 1
   private val LOW = 0
@@ -20,7 +21,7 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler {
   private var schedule: ListBuffer[MessageId] = ListBuffer(0)
 
   def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]): Unit = {
-    predecessors.foreach(m => partitioner.insert(Node(m._1, m._2)))
+    predecessors.toList.sortBy(_._1).foreach(m => partitioner.insert(Node(m._1, m._2)))
 
     val chains = partitioner.getChains
     val newChains = chains.map(_.id).toSet.diff(priorities(LOW).toSet).diff(priorities(HIGH).toSet)
@@ -44,6 +45,7 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler {
     require(next(chainId).isDefined)
     val nextMsg = next(chainId).get.id
     schedule += nextMsg
+    numScheduled = numScheduled + 1
     last += (chainId -> (last(chainId) + 1))
     if(priorityChangePts.contains(numScheduled)) {
       assignPriority(chainId, high = false)
@@ -68,8 +70,14 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler {
       priorities(HIGH).insert(pos, id)
     } else {
       // decrease priority - add to the lower priority buffer
+      logger.debug("Priority change - Chain: " + id)
+      logger.debug("Chains ordered by priority before: " + priorities(HIGH) + priorities(LOW))
+      // decrease priority - add to the end of the lower priority list
       priorities(HIGH) = priorities(HIGH).-(id)
+      priorities(LOW) = priorities(LOW).-(id)
       priorities(LOW).insert(priorities(LOW).size, id)
+      logger.debug("Chains ordered by priority after: " + priorities(HIGH) + priorities(LOW))
+
     }
   }
 
