@@ -1,6 +1,7 @@
 package pct.ag
 
 import akka.dispatch.util.IdGenerator
+import com.typesafe.scalalogging.Logger
 import pct.{ChainId, MessageId}
 
 //todo consider updating List to Vector
@@ -17,16 +18,13 @@ class ChainPartitioner {
 
   import ChainPartitioner._
   val idGen = new IdGenerator(0)
+  val logger = Logger("ALG")
 
   var partitioning: Partitioning = List()
 
   def insert(elem: Node): Unit = partitioning = insert(elem, partitioning)
 
   def insert(elem: Node, partition: Partitioning): Partitioning = {
-    require(partition.indices.forall(i => partition(i).size <= i + 1) &&
-      (0 until partition.size-1).forall(i => partition(i).size == i + 1) &&
-      !partition.indices.exists(i => hasComparableElems(getMaximals(partition(i)))))
-
     def insertIntoBSet(index: Int): List[BSet] = {
       if(partition.size <= index) {
         // Create a new BSet and add the element
@@ -46,11 +44,26 @@ class ChainPartitioner {
           // The element fits in more than one chains, append to one of them and update B(i-1) and B(i)
           case c :: xs => // more than one chains, need to swap
             val leftChains = partition(index - 1)
+            println("Changing: " + (index-1) + " and " + index)
             partition.updated(index-1, bset - c).updated(index, leftChains + appendToChain(elem, c))
         }
       }
     }
-    insertIntoBSet(0)
+    val bsets = insertIntoBSet(0)
+    logger.debug("Inserted: " + elem.id + " preds: " + elem.preds)
+    bsets.foreach(x => logger.debug(x.toString))
+
+    try {
+      assert(bsets.indices.forall(i => bsets(i).size <= i + 1))
+      assert(!bsets.indices.exists(i => hasComparableElems(getMaximals(bsets(i)))))
+    } catch {
+      case e: Throwable =>
+        logger.error("BSet invariant is broken!\n" + e)
+        println(Console.RED + "BSet invariant is broken!\n" + e + Console.RESET)
+        System.exit(-1)
+    }
+
+    bsets
   }
 
   def appendToChain(elem: Node, chain: Chain): Chain = Chain(chain.id, chain.elems :+ elem)

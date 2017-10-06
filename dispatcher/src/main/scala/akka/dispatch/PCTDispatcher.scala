@@ -169,13 +169,6 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
 
   /**
-    * Prepends an initial MessageReceived event to the first list of events
-    * (which not produced in response to any actor message)
-    * @return list of events generated in the initialization
-    */
-  private def handleInitiate(): List[(MessageId, ProgramEvent)] = state.collectEvents()
-
-  /**
     * Terminates the actor system
     */
   private def handleTerminate: Any = actorSystem match {
@@ -187,7 +180,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * @param message Message to be dispatched
     * @return list of generated events
     */
-  def handleDispatchMessageToActor(message: Message): List[(MessageId, ProgramEvent)] = state.existsActor(message.receiver) match {
+  private def handleDispatchMessageToActor(message: Message): Unit = state.existsActor(message.receiver) match {
     case Some(actor) if !state.isProcessed(message.id) =>
       state.updateState(MessageReceived(actor, message.id, message.envelope))
       // handle the actor message synchronously
@@ -195,33 +188,27 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       val mbox = receiver.mailbox
       mbox.enqueue(receiver.self, message.envelope)
       processMailbox(mbox)
-      state.collectEvents()
     case Some(_) =>
       printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + message)
-      List()
     case None =>
       printLog(CmdLineUtils.LOG_WARNING, "Cannot dispatch message: " + message + " Recipient actor cannot be found.")
-      List()
   }
 
   /**
     * @param message Message to be dropped
     * @return list of generated events
     */
-  def handleDropMessageFromActor(message: Message): List[(MessageId, ProgramEvent)] = state.existsActor(message.receiver) match {
+  private def handleDropMessageFromActor(message: Message): Unit = state.existsActor(message.receiver) match {
     case Some(actor) if !state.isProcessed(message.id) =>
       state.updateState(MessageDropped(actor, message.id, message.envelope))
-      state.collectEvents()
     case Some(actor) =>
       printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + id)
-      List()
     case None =>
       printLog(CmdLineUtils.LOG_WARNING, "Cannot drop message: " + message + " Recipient actor cannot be found.")
-      List()
   }
 
   private def processMailbox(mbox: Mailbox): Unit = {
-    if(mbox.hasMessages) { // DebuggerDispatcher runs this method after enqueuing a message
+    if(mbox.hasMessages) { // Dispatcher runs this method after enqueuing a message
       ReflectionUtils.callPrivateMethod(mbox, "processAllSystemMessages")()
       ReflectionUtils.callPrivateMethod(mbox, "processMailbox")(1, 0L)
     } else {
@@ -243,6 +230,12 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     executorService execute r
   }
 
+  private def sendProgramEvents: Runnable = toRunnable(() => {
+    val events = state.collectEvents()
+    printLog(CmdLineUtils.LOG_INFO, "Events: " + events)
+    ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+  })
+
   /**
     * Overriden to intercept and keep the dispatched messages
     * @param receiver   receiver of the intercepted message
@@ -256,8 +249,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         case DispatchMessageToActor(messageId) =>
           runOnExecutor(toRunnable(() => {
             if(state.existsMessage(messageId)){
-              val events = handleDispatchMessageToActor(state.getMessage(messageId))
-              ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+              handleDispatchMessageToActor(state.getMessage(messageId))
+              runOnExecutor(sendProgramEvents)
             } else {
               printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
               ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
@@ -267,8 +260,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         case DropMessageFromActor(messageId) =>
           runOnExecutor(toRunnable(() => {
             if(state.existsMessage(messageId)) {
-              val events = handleDropMessageFromActor(state.getMessage(messageId))
-              ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+              handleDropMessageFromActor(state.getMessage(messageId))
+              runOnExecutor(sendProgramEvents)
             } else {
               printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
               ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
@@ -276,10 +269,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
           }))
           return
         case InitDispatcher =>
-          runOnExecutor(toRunnable(() => {
-            val events = handleInitiate()
-            ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
-          }))
+          // collect and send the initial program events
+          runOnExecutor(sendProgramEvents)
           return
         case EndDispatcher =>
           runOnExecutor(toRunnable(() => {
@@ -379,8 +370,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case Terminate() =>
         CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg terminates: " + receiver.self)
         // add to the event list only if it is not a system actor
-        if (!DispatcherUtils.isSystemActor(receiver.self))
-          state.updateState(ActorDestroyed(receiver))
+        //if (!DispatcherUtils.isSystemActor(receiver.self))
+        //  state.updateState(ActorDestroyed(receiver))
 
       case Supervise(child: ActorRef, async: Boolean) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Supervise. Child: " + child)
       case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
@@ -400,6 +391,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ )
       state.updateState(ActorCreated(actor))
 
+    println()
     new Mailbox(mailboxType.create(Some(actor.self), Some(actor.system))) with DefaultSystemMessageQueue
   }
 
