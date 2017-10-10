@@ -16,6 +16,7 @@ object DispatcherOptions {
   private val timeStepPath = "pct-dispatcher.timestep"
   private val logLevelPath = "pct-dispatcher.logLevel"
   private val uiChoicePath = "pct-dispatcher.inputChoice"
+  private val willTerminatePath = "pct-dispatcher.willTerminate"
   val defaultUiChoice = "CmdLine"
 
   val config: Config = ConfigFactory.load(debuggerConfigFile)
@@ -23,6 +24,8 @@ object DispatcherOptions {
   val logLevel: Int = if(config.hasPath(logLevelPath)) config.getInt(logLevelPath) else 1 //CmdLineUtils.LOG_INFO
 
   val useTimer: Boolean = if(config.hasPath(useTimerPath)) config.getBoolean(useTimerPath) else false
+
+  val willTerminate: Boolean = if(config.hasPath(willTerminatePath)) config.getBoolean(willTerminatePath) else false
 
   lazy val timeStep: FiniteDuration =
     if(config.hasPath(timeStepPath)) FiniteDuration(config.getDuration(timeStepPath, TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)

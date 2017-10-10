@@ -13,7 +13,7 @@ object ReflectionUtils {
     field.get(obj)
   }
 
-  def callPrivateMethod(x: AnyRef, methodName: String)(_args: Any*): Method = {
+  def callPrivateMethod(x: AnyRef, methodName: String)(_args: Any*): AnyRef = {
     val args = _args.map(_.asInstanceOf[AnyRef])
 
     def _parents: Stream[Class[_]] = Stream(x.getClass) #::: _parents.map(_.getSuperclass)
@@ -23,8 +23,8 @@ object ReflectionUtils {
 
     val method = methods.find(_.getName == methodName).getOrElse(throw new IllegalArgumentException("Method " + methodName + " not found"))
     method.setAccessible(true)
-    method.invoke(x, args: _*)
-    method
+    val res = method.invoke(x, args: _*)
+    res
   }
 
   def createNewEnvelope(message: Object, sender: ActorRef): Envelope = {
