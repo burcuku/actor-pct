@@ -18,6 +18,7 @@ import time.TimerActor
 import util.{CmdLineUtils, DispatcherUtils, FileUtils, ReflectionUtils}
 import util.FunUtils._
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
@@ -84,6 +85,7 @@ object PCTDispatcher {
     */
   var ioProvider: IOProvider = CmdLineIOProvider
 
+  var askPatternMessages: ListBuffer[(Cell, Envelope)] = ListBuffer()
   /**
     * Set the actor system used by the dispatcher
     * (Seperated from setUp method so that assigning the system and enabling the dispatcher can be done separately
@@ -98,38 +100,38 @@ object PCTDispatcher {
     * Is called by the app when it is done with the actor creation/initialization
     */
   def setUp(): Unit = actorSystem match {
-      // check to prevent initializing while using another Dispatcher type
-      case Some(system) if system.dispatcher.isInstanceOf[PCTDispatcher] =>
-        actorSystem = Some(system)
-        helperActor = Some(system.actorOf(Props(new Actor() {
-          override def receive: Receive = Actor.emptyBehavior
-        }), "DispatcherHelperActor"))
+    // check to prevent initializing while using another Dispatcher type
+    case Some(system) if system.dispatcher.isInstanceOf[PCTDispatcher] =>
+      actorSystem = Some(system)
+      helperActor = Some(system.actorOf(Props(new Actor() {
+        override def receive: Receive = Actor.emptyBehavior
+      }), "DispatcherHelperActor"))
 
-        // create TimerActor only if the user uses virtual time (e.g. scheduler.schedule methods) in his program
-        if(DispatcherOptions.useTimer) {
-          val timer = system.actorOf(Props(new TimerActor(DispatcherOptions.timeStep)), "Timer")
-          timerActor = Some(timer)
-          timer ! AdvanceTime
-        }
+      // create TimerActor only if the user uses virtual time (e.g. scheduler.schedule methods) in his program
+      if(DispatcherOptions.useTimer) {
+        val timer = system.actorOf(Props(new TimerActor(DispatcherOptions.timeStep)), "Timer")
+        timerActor = Some(timer)
+        timer ! AdvanceTime
+      }
 
-        DispatcherOptions.uiChoice.toUpperCase match {
-          case "CMDLINE" =>
-            printLog(CmdLineUtils.LOG_INFO, "Input choice: Command line")
-            ioProvider = CmdLineIOProvider
-          case "PCT" =>
-            printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
-            ioProvider = PCTIOProvider
-          case "RANDOM" =>
-            printLog(CmdLineUtils.LOG_INFO, "Input choice: Naive random")
-            ioProvider = RandomExecProvider
-          case _ =>
-            printLog(CmdLineUtils.LOG_INFO, "Default input choice: Command line")
-            ioProvider = CmdLineIOProvider
-        }
+      DispatcherOptions.uiChoice.toUpperCase match {
+        case "CMDLINE" =>
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: Command line")
+          ioProvider = CmdLineIOProvider
+        case "PCT" =>
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
+          ioProvider = PCTIOProvider
+        case "RANDOM" =>
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: Naive random")
+          ioProvider = RandomExecProvider
+        case _ =>
+          printLog(CmdLineUtils.LOG_INFO, "Default input choice: Command line")
+          ioProvider = CmdLineIOProvider
+      }
 
-        ioProvider.setUp(system)
+      ioProvider.setUp(system)
 
-      case _ => // do nth
+    case _ => // do nth
   }
 
   def sendToDispatcher(msg: Any): Unit = helperActor match {
@@ -150,8 +152,8 @@ object PCTDispatcher {
   * An extension of Dispatcher with todo logging facilities
   */
 final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
-                                _id: String,
-                                _shutdownTimeout: FiniteDuration)
+                          _id: String,
+                          _shutdownTimeout: FiniteDuration)
   extends Dispatcher(
     _configurator,
     _id,
@@ -172,7 +174,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * Terminates the actor system
     */
   private def handleTerminate: Any = actorSystem match {
-    case Some(system) => system.terminate
+    case Some(system) if DispatcherOptions.willTerminate => system.terminate
+    case Some(system)  => printLog(CmdLineUtils.LOG_WARNING,  "System terminate request received. Not configured to force termination.")
     case None => printLog(CmdLineUtils.LOG_WARNING,  "Cannot terminate")
   }
 
@@ -216,25 +219,53 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     }
   }
 
-  private def checkAndWaitForActorBehavior(actor: ActorCell): Unit = {
+  private def isActorReady(actor: Cell): Boolean =
     if(ReflectionUtils.readPrivateVal(actor, "behaviorStack").asInstanceOf[List[Actor.Receive]] == List.empty) {
-      printLog(CmdLineUtils.LOG_DEBUG, "Actor behavior is not set. Cannot process mailbox. Trying again..")
-      // We use blocking wait since the ? pattern is run synchronously
-      // and the thread dispatching the messages are blocked until this mailbox is processed
-      Thread.sleep(500)
-      checkAndWaitForActorBehavior(actor)
-    }
-  }
+      printLog(CmdLineUtils.LOG_DEBUG, "Actor behavior is not set. Cannot process mailbox. Will try again..")
+      false
+    } else true
 
   private def runOnExecutor(r: Runnable): Unit = {
     executorService execute r
   }
 
-  private def sendProgramEvents: Runnable = toRunnable(() => {
+  private def sendProgramEvents() = runOnExecutor(toRunnable(() => {
     val events = state.collectEvents()
-    printLog(CmdLineUtils.LOG_DEBUG, "Events: " + events)
+    printLog(CmdLineUtils.LOG_INFO, "Events: " + events)
     ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
-  })
+  }))
+
+  // if a message is asked before its recipient actor is ready, askPatternMessages is nonempty
+  // process them before collecting the events
+  private def processAskMessages(): Unit = runOnExecutor(toRunnable(() => {
+    val list = askPatternMessages.toList
+    //todo revise for nested ask requests!
+    if(list.nonEmpty) printLog(CmdLineUtils.LOG_WARNING, "Handling ask messages sent when the actor was not ready... ")
+    askPatternMessages = ListBuffer()
+    list.foreach(x => {
+      printLog(CmdLineUtils.LOG_DEBUG, "Handling ask pattern message to " + x._1.self.path + " " + x._2)
+      executeAskMessageSync(x._1, x._2)
+    })
+    if(askPatternMessages.nonEmpty) {
+      printLog(CmdLineUtils.LOG_DEBUG, "Handling MORE ask pattern messages... ")
+      processAskMessages()
+    }
+  }))
+
+  private def executeAskMessageSync(receiver: Cell, envelope: Envelope) = {
+    if(isActorReady(receiver)) {
+      printLog(CmdLineUtils.LOG_DEBUG, "Running synchronously: " + receiver.self.path + " " + envelope)
+      val mbox = receiver.asInstanceOf[ActorCell].mailbox
+      mbox.enqueue(receiver.self, envelope)
+      val t = new Thread(toRunnable(() => processMailbox(mbox)))
+      t.start()
+      t.join(10000)
+    } else {
+      printLog(CmdLineUtils.LOG_DEBUG, "Actor not ready yet.. Saving for execution: " + receiver.self.path + " " + envelope)
+      askPatternMessages += ((receiver, envelope))
+      processAskMessages()
+    }
+  }
 
   /**
     * Overriden to intercept and keep the dispatched messages
@@ -250,7 +281,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
           runOnExecutor(toRunnable(() => {
             if(state.existsMessage(messageId)){
               handleDispatchMessageToActor(state.getMessage(messageId))
-              runOnExecutor(sendProgramEvents)
+              processAskMessages()
+              sendProgramEvents()
             } else {
               printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
               ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
@@ -261,7 +293,8 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
           runOnExecutor(toRunnable(() => {
             if(state.existsMessage(messageId)) {
               handleDropMessageFromActor(state.getMessage(messageId))
-              runOnExecutor(sendProgramEvents)
+              processAskMessages()
+              sendProgramEvents()
             } else {
               printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
               ioProvider.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
@@ -269,9 +302,10 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
           }))
           return
         case InitDispatcher =>
-          runOnExecutor(toRunnable(() => {
-            runOnExecutor(sendProgramEvents)
-          }))
+          // collect and send the initial program events
+          printLog(CmdLineUtils.LOG_DEBUG, "The dispatcher sends the initial program events")
+          processAskMessages()
+          sendProgramEvents()
           return
         case EndDispatcher =>
           runOnExecutor(toRunnable(() => {
@@ -314,18 +348,17 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case _ =>
         // if the message is sent by the Ask Pattern:
         if (invocation.sender.isInstanceOf[PromiseActorRef]) {
-          printLog(CmdLineUtils.LOG_DEBUG, "-- Message by AskPattern. Sending for execution. " + receiver.self + " " + invocation)
-          checkAndWaitForActorBehavior(receiver)
-          val mbox = receiver.mailbox
-          mbox.enqueue(receiver.self, invocation)
+          printLog(CmdLineUtils.LOG_DEBUG, "-- Message by AskPattern. Sending for for execution. " + receiver.self + " " + invocation)
+          //checkAndWaitForActorBehavior(receiver)
+          //val mbox = receiver.mailbox
+          //mbox.enqueue(receiver.self, invocation)
           // registerForExecution posts the msg processing runnable to the thread pool executor
           // (It gets blocked since the only thread in the thread pool is possibly waiting on a future)
           // In case of ?, the msg is synchronously executed in the dispatcher thread
 
+          // process the ask-pattern message synchronously (if the receiver actor is ready)
           // (NOTE: Message handlers in Akka should not have synchronized blocks by design)
-          val t = new Thread(toRunnable(() => processMailbox(mbox)))
-          t.start()
-          t.join(10000)
+          executeAskMessageSync(receiver, invocation)
           return
         }
 
@@ -370,9 +403,9 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case Resume(causedByFailure: Throwable) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Resume by failure: " + causedByFailure)
       case Terminate() =>
         CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg terminates: " + receiver.self)
-        // add to the event list only if it is not a system actor
-        //if (!DispatcherUtils.isSystemActor(receiver.self))
-        //  state.updateState(ActorDestroyed(receiver))
+      // add to the event list only if it is not a system actor
+      //if (!DispatcherUtils.isSystemActor(receiver.self))
+      //  state.updateState(ActorDestroyed(receiver))
 
       case Supervise(child: ActorRef, async: Boolean) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Supervise. Child: " + child)
       case Watch(watchee: InternalActorRef, watcher: InternalActorRef) => printLog(CmdLineUtils.LOG_DEBUG, "Handling system msg: Watch. Watchee: " + watchee + " Watcher: " + watcher)
@@ -392,6 +425,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ )
       state.updateState(ActorCreated(actor))
 
+    println()
     new Mailbox(mailboxType.create(Some(actor.self), Some(actor.system))) with DefaultSystemMessageQueue
   }
 
