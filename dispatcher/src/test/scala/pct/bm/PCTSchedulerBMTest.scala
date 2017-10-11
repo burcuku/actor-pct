@@ -27,7 +27,7 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
       pctStrategy.printPrioInvPoints
       
       for (i <- 0 until 10)
-        pctStrategy.getNextMessage
+        pctStrategy.scheduleNextMessage
         
       pctStrategy.printSchedule   
     }
@@ -43,7 +43,7 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
       pctStrategy.printPrioInvPoints
       
       for (i <- 0 until 10)
-        pctStrategy.getNextMessage
+        pctStrategy.scheduleNextMessage
         
       pctStrategy.printSchedule  
     }
@@ -59,7 +59,7 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
       pctStrategy.printPrioInvPoints
       
       for (i <- 0 until 4)
-        pctStrategy.getNextMessage
+        pctStrategy.scheduleNextMessage
         
       pctStrategy.printSchedule  
     }        

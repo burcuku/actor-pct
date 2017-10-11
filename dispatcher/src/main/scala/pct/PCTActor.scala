@@ -18,7 +18,7 @@ class PCTActor extends Actor with LazyLogging {
       logger.debug("Added messages: " + predecessors.toList.sortBy(_._1))
 
       pctScheduler.addNewMessages(predecessors)
-      val nextMessage = pctScheduler.getNextMessage
+      val nextMessage = pctScheduler.scheduleNextMessage
 
       nextMessage match {
         case Some(id) =>
