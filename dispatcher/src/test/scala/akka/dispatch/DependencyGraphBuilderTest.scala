@@ -203,10 +203,10 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       // InitialReceived has MessageReceived(ActorRef.noSender, Envelope("", ActorRef.noSender))
       // Actors created initially in the program (not in an actor) has ActorRef.noSender=null parent
       dependencyBuilder.calculateDependencies(programOutput1._1, programOutput1._2, programOutput1._3)
-      dependencyBuilder.actorCreatedIn(main) shouldBe Message(0,null,Envelope("",null))
-      dependencyBuilder.actorCreatedIn(executor) shouldBe Message(0,null,Envelope("",null))
-      dependencyBuilder.actorCreatedIn(terminator) shouldBe Message(0,null,Envelope("",null))
-      dependencyBuilder.actorCreatedIn(writer) shouldBe Message(0,null,Envelope("",null))
+      dependencyBuilder.actorCreatedIn(main) shouldBe Message(0,null,ReflectionUtils.createNewEnvelope("",null))
+      dependencyBuilder.actorCreatedIn(executor) shouldBe Message(0,null,ReflectionUtils.createNewEnvelope("",null))
+      dependencyBuilder.actorCreatedIn(terminator) shouldBe Message(0,null,ReflectionUtils.createNewEnvelope("",null))
+      dependencyBuilder.actorCreatedIn(writer) shouldBe Message(0,null,ReflectionUtils.createNewEnvelope("",null))
 
       dependencyBuilder.calculateDependencies(programOutput2._1, programOutput2._2, programOutput2._3)
       dependencyBuilder.calculateDependencies(programOutput3._1, programOutput3._2, programOutput3._3)
@@ -379,10 +379,10 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
       val senderActor = TestActorRef[Dummy]
       val receiverActor = TestActorRef[Dummy]
 
-      val initEnvelope = Envelope("InitEnvelope", main)
-      val envelope1 = Envelope("Envelope-1", senderActor)
-      val dummyEnvelope = Envelope("dummy-envelope", senderActor)
-      val envelope2 = Envelope("Envelope-1", senderActor)
+      val initEnvelope = ReflectionUtils.createNewEnvelope("InitEnvelope", main)
+      val envelope1 = ReflectionUtils.createNewEnvelope("Envelope-1", senderActor)
+      val dummyEnvelope = ReflectionUtils.createNewEnvelope("dummy-envelope", senderActor)
+      val envelope2 = ReflectionUtils.createNewEnvelope("Envelope-1", senderActor)
 
       /*
         Initial sequence of program events:
@@ -391,7 +391,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
         MessageSent(senderActor, initEnvelope) //1
       */
       val programOutput1: (Message, List[Message], List[ActorRef]) = (
-        Message(0L, ActorRef.noSender, Envelope("", ActorRef.noSender)),
+        Message(0L, ActorRef.noSender, ReflectionUtils.createNewEnvelope("", ActorRef.noSender)),
         List(Message(1L, main, executeEnvelope), Message(2L, terminator, toTerminatorEnvelope)),
         List(main, executor, terminator, writer)
       )
@@ -466,7 +466,7 @@ class DependencyGraphBuilderTest extends TestKit(ActorSystem("MySpec")) with Imp
         MessageSent(main, executeEnvelope) //1
      */
       val programOutput1: (Message, List[Message], List[ActorRef]) = (
-        Message(0L, ActorRef.noSender, Envelope("", ActorRef.noSender)),
+        Message(0L, ActorRef.noSender, ReflectionUtils.createNewEnvelope("", ActorRef.noSender)),
         List(Message(1L, main, executeEnvelope)),
         List(main, executor, terminator, writer)
       )

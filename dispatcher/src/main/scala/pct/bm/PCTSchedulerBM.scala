@@ -55,7 +55,7 @@ class PCTSchedulerBM(options: PCTOptions) extends PCTScheduler with LazyLogging 
     pctDecomposition.shuffleChains
   }
   
-  def getNextMessage: Option[MessageId] = {
+  def scheduleNextMessage: Option[MessageId] = {
     val nextId = pctDecomposition.getMinEnabledMessage()
     nextId match {
       case Some(id) =>

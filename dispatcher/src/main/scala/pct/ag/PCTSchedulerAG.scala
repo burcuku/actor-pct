@@ -1,45 +1,56 @@
 package pct.ag
 
+import com.typesafe.scalalogging.LazyLogging
 import pct.ag.ChainPartitioner.Node
 import pct.{ChainId, MessageId, PCTOptions, PCTScheduler}
-import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLogging {
   private val randInt = new Random(pctOptions.randomSeed)
-  private val HIGH = 1
-  private val LOW = 0
+  private val priorityChangePts: Set[MessageId] = Array.fill(pctOptions.bugDepth-1)(randInt.nextInt(pctOptions.maxMessages).asInstanceOf[MessageId]).toSet
+  private var numCurrentChangePt: Int = 0 // no priority change yet
+  logger.info("Priority inversion points at messages: " + priorityChangePts)
 
-  private val priorityChangePts: Set[Int] = Array.fill(pctOptions.bugDepth-1)(randInt.nextInt(pctOptions.maxMessages)).toSet
   private val partitioner = new ChainPartitioner()
 
-  private var priorities: Array[ListBuffer[ChainId]] = Array.fill[ListBuffer[ChainId]](2)(ListBuffer[ChainId]())
+  // chains are sorted so that the highest in the index has the highest priority:
+  private var highPriorityChains: ListBuffer[ChainId] = ListBuffer[ChainId]()
+  // lower prioroties keep the chains with priorities 0 to d-2
+  private var reducedPriorityChains: Array[ChainId] = Array.fill(pctOptions.bugDepth-1)(-1)
+
   private var last: Map[ChainId, Int] = Map().withDefaultValue(0)
   private var numScheduled: Int = 0
   private var schedule: ListBuffer[MessageId] = ListBuffer(0)
-
-  logger.info("Priority change points: " + priorityChangePts)
 
   def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     predecessors.toList.sortBy(_._1).foreach(m => partitioner.insert(Node(m._1, m._2)))
 
     val chains = partitioner.getChains
-    val newChains = chains.map(_.id).toSet.diff(priorities(LOW).toSet).diff(priorities(HIGH).toSet)
-    newChains.foreach(c => assignPriority(c, high = true))
+    val newChains = chains.map(_.id).toSet.diff(highPriorityChains.toSet).diff(reducedPriorityChains.toSet)
+    newChains.foreach(c =>
+    { // assign random priority
+      val pos = randInt.nextInt(highPriorityChains.size + 1)
+      // insert after "pos" number of chains
+      highPriorityChains.insert(pos, c)
+    })
   }
 
-  def getNextMessage: Option[MessageId] = {
-    priorities(HIGH).find(c => next(c).isDefined && next(c).get.preds.forall(x => schedule.toSet.contains(x))) match {
-      // schedule an updated-priority chain
-      case Some(chainId) => Some(schedule(chainId))
-      case None => priorities(LOW).find(c => next(c).isDefined) match {
-        // schedule a chain with its initial priority
-        case Some(chainId) => Some(schedule(chainId))
-        // no more chains with next elements
-        case None => None
-      }
+  def scheduleNextMessage: Option[MessageId] = getCurrentChain match {
+    case Some(chainId) => Some(schedule(chainId))
+    case None => None
+  }
+
+  /**
+    * Finds the chain to be scheduled next
+    * @return chain id of the current chain
+    */
+  def getCurrentChain: Option[ChainId] = highPriorityChains.toList.reverse.find(c => next(c).isDefined && next(c).get.preds.forall(x => schedule.toSet.contains(x))) match {
+    case Some(chainId) => Some(chainId)
+    case None => reducedPriorityChains.toList.reverse.find(c => next(c).isDefined) match {
+      case Some(chainId) => Some(chainId)
+      case None => None
     }
   }
 
@@ -47,11 +58,29 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
     require(next(chainId).isDefined)
 
     val nextMsg = next(chainId).get.id
+    logger.debug("Priority change at message: " + nextMsg)
+
+    if(priorityChangePts.contains(nextMsg) && priorityChangePts.size != numCurrentChangePt && reducedPriorityChains(priorityChangePts.size - numCurrentChangePt - 1) != chainId) {
+      logger.debug("Changing priority of chain: " + chainId + " to " + (priorityChangePts.size - numCurrentChangePt - 1))
+      highPriorityChains = highPriorityChains.-(chainId)
+      println("Reducing")
+
+      // if its priority was reduces before, clean its prev index
+      val prevIndex = reducedPriorityChains.indexWhere(_ == chainId)
+      if(prevIndex != -1) reducedPriorityChains(prevIndex) = -1
+
+      reducedPriorityChains(priorityChangePts.size - numCurrentChangePt - 1) = chainId
+      numCurrentChangePt += 1
+      logger.debug("Chains ordered by priority after: " + highPriorityChains.toList.reverse + reducedPriorityChains.toList.reverse)
+
+      // ensured to have at least one enabled chain (we have at least one message)
+      assert(getCurrentChain.isDefined)
+      return schedule(getCurrentChain.get)
+    }
+
     schedule += nextMsg
     numScheduled = numScheduled + 1
     last += (chainId -> (last(chainId) + 1))
-    if(priorityChangePts.contains(numScheduled))
-      assignPriority(chainId, high = false)
 
     nextMsg
   }
@@ -59,36 +88,17 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   // index of the next element in the chain
   def next(chainId: ChainId): Option[Node] = {
     val chain = partitioner.getChain(chainId)
+    println("Chain from partitioner: " + chainId)
     chain match {
       case Some(c) if c.elems.size > last(chainId) => Some(c.elems(last(chainId)))
       case _ => None
     }
   }
 
-  def assignPriority(id: ChainId, high: Boolean): Unit = {
-    if(high) {
-      // assign random priority
-      val pos = randInt.nextInt(priorities(HIGH).size + 1)
-      // insert after "pos" number of chains
-      priorities(HIGH).insert(pos, id)
-    } else {
-      logger.debug("Priority change - Chain: " + id)
-      logger.debug("Chains ordered by priority before: " + priorities(HIGH) + priorities(LOW))
-      // decrease priority - add to the end of the lower priority list
-      priorities(HIGH) = priorities(HIGH).-(id)
-      priorities(LOW) = priorities(LOW).-(id)
-      priorities(LOW).insert(priorities(LOW).size, id)
-      logger.debug("Chains ordered by priority after: " + priorities(HIGH) + priorities(LOW))
-    }
-    assert(priorities(HIGH).toList.distinct.size == priorities(HIGH).toList.size)
-    assert(priorities(LOW).toList.distinct.size == priorities(LOW).toList.size)
-  }
-
-  def getPriorities(high: Boolean): List[ChainId] = if(high) priorities(HIGH).toList else priorities(LOW).toList
+  def getPriorities: List[ChainId] = (highPriorityChains.toList.reverse ++ reducedPriorityChains.toList.reverse).filter(_ != -1)
 
   // for testing purposes:
-  def getHighestPriorityChain(high: Boolean): ChainId = if(high) priorities(HIGH).toList.head else priorities(LOW).toList.head
-  def getPriorityChangePts: Set[Int] = priorityChangePts
+  def getPriorityChangePts: Set[MessageId] = priorityChangePts
 
   def getChains: List[ChainPartitioner.Chain] = {
     partitioner.printPartitioning()
