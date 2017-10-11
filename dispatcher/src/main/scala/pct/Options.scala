@@ -11,10 +11,13 @@ object Options {
   private val maxMessagesPath = "pct-dispatcher.maxMessages"
   private val algorithmPath = "pct-dispatcher.algorithm"
 
+  private val randomSeedPath = "pct-dispatcher.seed"
+
   private val defaultBugDepth = 1
   private val defaultMaxMessages = 10
   private val defaultAlgorithm = "AG"
 
+  val randomSeed: Long = if(config.hasPath(randomSeedPath)) ConfigFactory.load(configFile).getLong(randomSeedPath) else System.currentTimeMillis()
   val bugDepth: Int = if(config.hasPath(bugDepthPath)) ConfigFactory.load(configFile).getInt(bugDepthPath) else defaultBugDepth
   val maxMessages: Int = if(config.hasPath(maxMessagesPath)) ConfigFactory.load(configFile).getInt(maxMessagesPath) else defaultMaxMessages
   val algorithm: String = if(config.hasPath(algorithmPath)) {
@@ -24,6 +27,7 @@ object Options {
 
   def print(): Unit = {
     println("PCT OPTIONS:")
+    println("Random seed: " + randomSeed)
     println("Bug depth: " + bugDepth)
     println("Max number of messages: " + maxMessages)
     println("Chain partitioning algorithm: " + algorithm)

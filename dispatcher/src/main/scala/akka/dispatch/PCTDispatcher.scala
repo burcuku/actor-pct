@@ -109,7 +109,7 @@ object PCTDispatcher {
 
       // create TimerActor only if the user uses virtual time (e.g. scheduler.schedule methods) in his program
       if(DispatcherOptions.useTimer) {
-        val timer = system.actorOf(Props(new TimerActor(DispatcherOptions.timeStep)), "Timer")
+        val timer = system.actorOf(Props(new TimerActor(DispatcherOptions.timeStep, DispatcherOptions.maxNumTimeSteps)), "Timer")
         timerActor = Some(timer)
         timer ! AdvanceTime
       }
@@ -175,7 +175,9 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   private def handleTerminate: Any = actorSystem match {
     case Some(system) if DispatcherOptions.willTerminate => system.terminate
-    case Some(system)  => printLog(CmdLineUtils.LOG_WARNING,  "System terminate request received. Not configured to force termination.")
+    case Some(system)  =>
+      printLog(CmdLineUtils.LOG_WARNING,  "System terminate request received. Not configured to force termination.")
+      logInfo
     case None => printLog(CmdLineUtils.LOG_WARNING,  "Cannot terminate")
   }
 
@@ -425,7 +427,6 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ )
       state.updateState(ActorCreated(actor))
 
-    println()
     new Mailbox(mailboxType.create(Some(actor.self), Some(actor.system))) with DefaultSystemMessageQueue
   }
 
@@ -434,7 +435,11 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   override def shutdown: Unit = {
     printLog(CmdLineUtils.LOG_INFO, "Shutting down.. ")
+    logInfo
+    super.shutdown
+  }
 
+  private def logInfo = {
     FileUtils.printToFile("allEvents") { p =>
       state.getAllEvents.foreach(p.println)
     }
@@ -453,8 +458,6 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         p.println(x.id + "  Receiver: " + x.receiver.self.path.name + "  Sender: " + x.msg.sender.path.name + "  Payload: " + x.msg.message)
       )
     }}
-
-    super.shutdown
   }
 }
 

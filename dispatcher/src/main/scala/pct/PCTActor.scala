@@ -8,7 +8,7 @@ import pct.ag.PCTSchedulerAG
 import pct.bm.PCTSchedulerBM
 
 class PCTActor extends Actor with LazyLogging {
-  private val pctOptions = PCTOptions(randomSeed = System.currentTimeMillis(), maxMessages = Options.maxMessages, bugDepth = Options.bugDepth)
+  private val pctOptions = PCTOptions(randomSeed = Options.randomSeed, maxMessages = Options.maxMessages, bugDepth = Options.bugDepth)
   private val pctScheduler = if(Options.algorithm.equals("AG")) new PCTSchedulerAG(pctOptions) else new PCTSchedulerBM(pctOptions)
   logger.warn(pctOptions.toString)
 
