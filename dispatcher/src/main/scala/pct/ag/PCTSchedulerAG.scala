@@ -63,7 +63,6 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
     if(priorityChangePts.contains(nextMsg) && priorityChangePts.size != numCurrentChangePt && reducedPriorityChains(priorityChangePts.size - numCurrentChangePt - 1) != chainId) {
       logger.debug("Changing priority of chain: " + chainId + " to " + (priorityChangePts.size - numCurrentChangePt - 1))
       highPriorityChains = highPriorityChains.-(chainId)
-      println("Reducing")
 
       // if its priority was reduces before, clean its prev index
       val prevIndex = reducedPriorityChains.indexWhere(_ == chainId)
@@ -88,7 +87,6 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   // index of the next element in the chain
   def next(chainId: ChainId): Option[Node] = {
     val chain = partitioner.getChain(chainId)
-    println("Chain from partitioner: " + chainId)
     chain match {
       case Some(c) if c.elems.size > last(chainId) => Some(c.elems(last(chainId)))
       case _ => None
