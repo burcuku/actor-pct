@@ -19,6 +19,7 @@ import util.{CmdLineUtils, DispatcherUtils, FileUtils, ReflectionUtils}
 import util.FunUtils._
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
@@ -72,6 +73,11 @@ object PCTDispatcher {
     * Called when the user requests to terminate the program
     */
   def terminateDispatcher(): Unit = sendToDispatcher(EndDispatcher)
+
+  def awaitTermination(): Unit = actorSystem match {
+    case Some(system) => Await.result(system.whenTerminated, Duration.Inf)
+    case None => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Actor system is not set yet.")
+  }
 
   /**
     * The following variables will be filled when the Dispatcher is set up with the actor system parameter

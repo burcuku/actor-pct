@@ -16,7 +16,8 @@ object PingPongApp extends App {
 
   PCTDispatcher.setActorSystem(system)
   PCTDispatcher.setUp()
-  system.awaitTermination()
+  //system.awaitTermination()
+  PCTDispatcher.awaitTermination()
 }
 
 
