@@ -13,6 +13,7 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.pattern.PromiseActorRef
 import com.typesafe.config.Config
+import pct.Options
 import protocol.{ErrorResponse, MessagePredecessors}
 import time.TimerActor
 import util.{CmdLineUtils, DispatcherUtils, FileUtils, ReflectionUtils}
@@ -100,12 +101,14 @@ object PCTDispatcher {
     */
   def setActorSystem(system: ActorSystem): Unit = actorSystem = Some(system)
 
+  val defaultPCTOptions = pct.PCTOptions(Options.randomSeed, Options.maxMessages, Options.bugDepth)
+
   /**
     * Enables dispatcher to deliver messages to the actors
     * Sets ioProvider to get inputs / write outputs
     * Is called by the app when it is done with the actor creation/initialization
     */
-  def setUp(): Unit = actorSystem match {
+  def setUp(inputChoice: String = DispatcherOptions.uiChoice, pctOptions: pct.PCTOptions = defaultPCTOptions): Unit = actorSystem match {
     // check to prevent initializing while using another Dispatcher type
     case Some(system) if system.dispatcher.isInstanceOf[PCTDispatcher] =>
       actorSystem = Some(system)
@@ -120,16 +123,16 @@ object PCTDispatcher {
         timer ! AdvanceTime
       }
 
-      DispatcherOptions.uiChoice.toUpperCase match {
+      inputChoice.toUpperCase match {
         case "CMDLINE" =>
           printLog(CmdLineUtils.LOG_INFO, "Input choice: Command line")
           ioProvider = CmdLineIOProvider
         case "PCT" =>
           printLog(CmdLineUtils.LOG_INFO, "Input choice: PCT algorithm")
-          ioProvider = PCTIOProvider
+          ioProvider = new PCTIOProvider(pctOptions)
         case "RANDOM" =>
           printLog(CmdLineUtils.LOG_INFO, "Input choice: Naive random")
-          ioProvider = RandomExecProvider
+          ioProvider = new RandomExecProvider(pctOptions.randomSeed)
         case _ =>
           printLog(CmdLineUtils.LOG_INFO, "Default input choice: Command line")
           ioProvider = CmdLineIOProvider
@@ -139,6 +142,7 @@ object PCTDispatcher {
 
     case _ => // do nth
   }
+
 
   def sendToDispatcher(msg: Any): Unit = helperActor match {
     case Some(actor) => actor ! msg
@@ -152,6 +156,12 @@ object PCTDispatcher {
   //def getAllActorMessagesToProcess: Map[ActorRef, Set[Message]] = state.getAllActorMessagesToProcess
 
   //def getAllPredecessors: Set[(MessageId, Set[MessageId])] = state.getAllPredecessors
+
+  //todo take the message list as parameter
+  val httpMsgPrefixSet = Set(
+    "OnHeaderWriteCompleted", "OnContentWriteCompleted", "OnStatusReceived", "OnHeadersReceived", "OnBodyPartReceived"
+    // OnCompleted, OnThrowable
+  )
 }
 
 /**
@@ -183,7 +193,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     case Some(system) if DispatcherOptions.willTerminate => system.terminate
     case Some(system)  =>
       printLog(CmdLineUtils.LOG_WARNING,  "System terminate request received. Not configured to force termination.")
-      logInfo
+      logInfo()
     case None => printLog(CmdLineUtils.LOG_WARNING,  "Cannot terminate")
   }
 
@@ -238,6 +248,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
   }
 
   private def sendProgramEvents() = runOnExecutor(toRunnable(() => {
+    Thread.sleep(DispatcherOptions.networkDelay) // expect messages in response to the received message
     val events = state.collectEvents()
     printLog(CmdLineUtils.LOG_INFO, "Events: " + events)
     ioProvider.putResponse(MessagePredecessors(state.calculateDependencies(events)))
@@ -353,6 +364,14 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
         return
 
+      // Do not intercept http connection messages
+      case _ if httpMsgPrefixSet.exists(x => invocation.message.toString.startsWith(x)) =>
+        printLog(CmdLineUtils.LOG_WARNING, "-- HTTP Message running. " + receiver.self + " " + invocation)
+        val mbox = receiver.mailbox
+        mbox.enqueue(receiver.self, invocation)
+        registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
+        return
+
       case _ =>
         // if the message is sent by the Ask Pattern:
         if (invocation.sender.isInstanceOf[PromiseActorRef]) {
@@ -441,11 +460,12 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   override def shutdown: Unit = {
     printLog(CmdLineUtils.LOG_INFO, "Shutting down.. ")
-    logInfo
+    logInfo()
     super.shutdown
+    System.exit(0)
   }
 
-  private def logInfo = {
+  private def logInfo() = {
     FileUtils.printToFile("allEvents") { p =>
       state.getAllEvents.foreach(p.println)
     }

@@ -18,6 +18,7 @@ object DispatcherOptions {
   private val logLevelPath = "pct-dispatcher.logLevel"
   private val uiChoicePath = "pct-dispatcher.inputChoice"
   private val willTerminatePath = "pct-dispatcher.willTerminate"
+  private val networkDelayPath = "pct-dispatcher.networkDelay"
 
   val defaultUiChoice = "CmdLine"
 
@@ -30,6 +31,8 @@ object DispatcherOptions {
   val willTerminate: Boolean = if(config.hasPath(willTerminatePath)) config.getBoolean(willTerminatePath) else false
 
   val maxNumTimeSteps: Int = if(config.hasPath(maxNumTimeStepsPath)) config.getInt(maxNumTimeStepsPath) else 10
+
+  val networkDelay: Int = if(config.hasPath(networkDelayPath)) config.getInt(networkDelayPath) else 0
 
   lazy val timeStep: FiniteDuration =
     if(config.hasPath(timeStepPath)) FiniteDuration(config.getDuration(timeStepPath, TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)

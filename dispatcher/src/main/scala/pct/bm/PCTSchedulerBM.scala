@@ -70,4 +70,8 @@ class PCTSchedulerBM(options: PCTOptions) extends PCTScheduler with LazyLogging 
   }
 
   def getSchedule: List[MessageId] = schedule.toList
+  def getPrioInvPoints: List[Int] = prioInvPoints.toList.sorted
+  def getNumScheduledMsgs: Int = msgIndex
+  def getNumChains: Int = pctDecomposition.getChains.size
+  def getChainsOfMsgs: List[List[MessageId]] = pctDecomposition.getChains.map(x => x.toList)
 }

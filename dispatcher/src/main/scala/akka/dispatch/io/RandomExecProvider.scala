@@ -3,16 +3,17 @@ package akka.dispatch.io
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.dispatch.RequestForwarder
 import akka.dispatch.state.Messages.MessageId
+import akka.dispatch.util.FileUtils
 import protocol._
 
 /**
   * Selects the next message randomly from the set of available messages
   */
-object RandomExecProvider extends IOProvider {
+class RandomExecProvider(seed: Long = System.currentTimeMillis()) extends IOProvider {
   var randomExecActor: Option[ActorRef] = None
 
   def setUp(system: ActorSystem): Unit = {
-    randomExecActor = Some(system.actorOf(RandomExecActor.props))
+    randomExecActor = Some(system.actorOf(RandomExecActor.props(seed)))
     RequestForwarder.forwardRequest(InitRequest)
   }
 
@@ -25,11 +26,12 @@ object RandomExecProvider extends IOProvider {
 }
 
 // Receives user inputs and displays the received responses
-class RandomExecActor extends Actor {
-  val random = scala.util.Random
+class RandomExecActor(randomSeed: Long) extends Actor {
+  private val random = scala.util.Random
+  random.setSeed(randomSeed)
   private var preds: Map[MessageId, Set[MessageId]] = Map()
   private var messages: Set[MessageId] = Set()
-  private var processed: Set[MessageId] = Set(0)
+  private var processed: List[MessageId] = List(0)
 
   override def receive: Receive = {
 
@@ -41,9 +43,10 @@ class RandomExecActor extends Actor {
       selectRandomMessage match {
         case Some(id) =>
           println("Randomly selected message: " + id)
-          processed = processed + id
+          processed = id :: processed
           RequestForwarder.forwardRequest(DispatchMessageRequest(id))
         case None =>
+          logStats()
           println("Quiting. ")
           RequestForwarder.forwardRequest(TerminateRequest)
       }
@@ -53,17 +56,26 @@ class RandomExecActor extends Actor {
   }
 
   def selectRandomMessage: Option[MessageId] = {
-    def selectRandom(set: List[MessageId]): MessageId = scala.util.Random.shuffle(set).head
+    def selectRandom(set: List[MessageId]): MessageId = random.shuffle(set).head
 
     def isEnabled(id: MessageId): Boolean = preds(id).forall(x => processed.contains(x))
 
-    messages.diff(processed).filter(isEnabled).toList match {
+    messages.diff(processed.toSet).filter(isEnabled).toList match {
       case x :: xs => Some(selectRandom(x :: xs))
       case Nil => None
+    }
+  }
+
+  def logStats(): Unit = {
+    FileUtils.printToFile("stats") { p =>
+      p.println("Random Scheduler Stats: \n")
+      p.println("RandomSeed: " + randomSeed)
+      p.println("NumScheduledMsgs: " + processed.size)
+      p.println("Schedule: " + processed.reverse)
     }
   }
 }
 
 object RandomExecActor {
-  def props: Props = Props[RandomExecActor].withDispatcher("akka.actor.pinned-dispatcher")
+  def props(seed: Long): Props = Props(new RandomExecActor(seed)).withDispatcher("akka.actor.pinned-dispatcher")
 }
