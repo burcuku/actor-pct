@@ -2,14 +2,14 @@ package akka.dispatch.io
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch.RequestForwarder
-import pct.PCTActor
+import pct.{Options, PCTActor}
 import protocol.{InitRequest, Response}
 
-object PCTIOProvider extends IOProvider {
+class PCTIOProvider(pctOptions: pct.PCTOptions) extends IOProvider {
   var pctActor: Option[ActorRef] = None
 
   override def setUp(system: ActorSystem): Unit = {
-    pctActor = Some(system.actorOf(PCTActor.props, "PCTActor"))
+    pctActor = Some(system.actorOf(PCTActor.props(pctOptions), "PCTActor"))
     RequestForwarder.forwardRequest(InitRequest)
   }
 

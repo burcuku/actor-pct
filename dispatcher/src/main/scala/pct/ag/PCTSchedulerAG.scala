@@ -104,4 +104,9 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   }
 
   def getSchedule: List[MessageId] = schedule.toList
+  // the messages at which the priority will be inverted
+  def getPrioInvPoints: List[Int] = priorityChangePts.toList.sorted.map(i => i.asInstanceOf[Int])
+  def getNumScheduledMsgs: Int = numScheduled
+  def getNumChains: Int = partitioner.getChains.size
+  def getChainsOfMsgs: List[List[MessageId]] = partitioner.getChains.map(c => c.elems.map(node => node.id))
 }

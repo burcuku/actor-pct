@@ -1,15 +1,15 @@
 package pct
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, Props}
 import protocol._
 import akka.dispatch.RequestForwarder
+import akka.dispatch.util.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import pct.ag.PCTSchedulerAG
 import pct.bm.PCTSchedulerBM
 
-class PCTActor extends Actor with LazyLogging {
-  private val pctOptions = PCTOptions(randomSeed = Options.randomSeed, maxMessages = Options.maxMessages, bugDepth = Options.bugDepth)
-  private val pctScheduler = if(Options.algorithm.equals("AG")) new PCTSchedulerAG(pctOptions) else new PCTSchedulerBM(pctOptions)
+class PCTActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
+  private val pctScheduler = if(pctOptions.alg.equals("AG")) new PCTSchedulerAG(pctOptions) else new PCTSchedulerBM(pctOptions)
   logger.warn(pctOptions.toString)
 
   override def receive: Receive = {
@@ -26,12 +26,30 @@ class PCTActor extends Actor with LazyLogging {
           RequestForwarder.forwardRequest(DispatchMessageRequest(id))
         case None =>
           logger.info("Terminating")
-          logger.info("Schedule: \n" + pctScheduler.getSchedule)
+          logStats()
           RequestForwarder.forwardRequest(TerminateRequest)
       }
+  }
+
+  def logStats(): Unit = {
+    val alg = if(pctOptions.alg.equals("AG")) "AG" else "BM"
+    FileUtils.printToFile("stats") { p =>
+      p.println("PCT Scheduler Stats: \n")
+      p.println("Algorithm: " + alg)
+      p.println("RandomSeed: " + pctOptions.randomSeed)
+      p.println("MaxMessages: " + pctOptions.maxMessages)
+      p.println("BugDepth: " + pctOptions.bugDepth)
+      p.println()
+      p.println("NumScheduledMsgs: " + pctScheduler.getNumScheduledMsgs)
+      p.println("NumChains: " + pctScheduler.getNumChains)
+      p.println("PrioInversionPoints: " + pctScheduler.getPrioInvPoints)
+      p.println("Schedule: " + pctScheduler.getSchedule)
+      p.println("Chains: " + pctScheduler.getChainsOfMsgs)
+    }
   }
 }
 
 object PCTActor {
-  val props: Props = Props[PCTActor]
+  def props(pctOptions: PCTOptions): Props =
+    Props(new PCTActor(pctOptions))
 }
