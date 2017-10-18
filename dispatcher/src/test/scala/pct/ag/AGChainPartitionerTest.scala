@@ -2,9 +2,9 @@ package pct.ag
 
 import org.scalatest.{FlatSpec, Matchers}
 import pct.MessageId
-import pct.ag.ChainPartitioner.{Chain, Node, Partitioning}
+import pct.ag.AGChainPartitioner.{Chain, Node, Partitioning}
 
-class ChainPartitionerTest extends FlatSpec with Matchers {
+class AGChainPartitionerTest extends FlatSpec with Matchers {
 
   val node1 = Node(1, Set())
   val node2 = Node(2, Set())
@@ -29,47 +29,47 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val preds: Set[MessageId] = Set()
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.canAppendToChain(node1, chain) shouldBe true
   }
 
   it should "calculate whether an element can be appended to a chain correctly when the element has no predecessors" in {
     val chain = Chain(1, List(node1, node2, node3))
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.canAppendToChain(nodeConcurrent, chain) shouldBe false
   }
 
   it should "calculate whether an element can be appended to a chain correctly when the element has predecessors - positive" in {
     val chain = Chain(1, List(node1, node2, node3))
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.canAppendToChain(nodeDependentTo3And4, chain) shouldBe true
   }
 
   it should "calculate whether an element can be appended to a chain correctly when the element has predecessors - negative - has more dep." in {
     val chain = Chain(1, List(node1, node2, node3))
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.canAppendToChain(nodeDependentTo2And4, chain) shouldBe false
   }
 
   it should "calculate whether an element can be appended to a chain correctly when the element has predecessors - negative - has less dep." in {
     val chain = Chain(1, List(node1, node2, node3))
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.canAppendToChain(nodeDependentTo1And2, chain) shouldBe false
   }
 
   it should "insert an element to an empty chain correctly" in {
 
-    new ChainPartitioner().appendToChain(nodeConcurrent, emptyChain) shouldBe Chain(0, List(nodeConcurrent))
+    new AGChainPartitioner().appendToChain(nodeConcurrent, emptyChain) shouldBe Chain(0, List(nodeConcurrent))
   }
 
   it should "insert an element to a non-empty chain correctly" in {
     val chain = Chain(1, List(node1, node2, node3))
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.appendToChain(nodeDependentTo3, chain) shouldBe Chain(1, List(node1, node2, node3, nodeDependentTo3))
   }
 
@@ -78,14 +78,14 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
   it should "add a BSet - create BSet(0) in the empty partitioning" in {
     val partitioning = List()
 
-    new ChainPartitioner().insert(nodeConcurrent, partitioning) shouldBe List(Set(Chain(0, List(nodeConcurrent))))
+    new AGChainPartitioner().insert(nodeConcurrent, partitioning) shouldBe List(Set(Chain(0, List(nodeConcurrent))))
   }
 
   it should "add a new BSet - BSet(1)" in {
     val bset1 = Set(Chain(1, List(node1)))
     val partitioning = List(bset1)
 
-    val cp = new ChainPartitioner()
+    val cp = new AGChainPartitioner()
     cp.insert(nodeDependentTo3And4, partitioning) shouldBe List(bset1, Set(Chain(0, List(nodeDependentTo3And4))))
   }
 
@@ -97,7 +97,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val expected: Partitioning = List(bset1, bset2, Set(Chain(0, List(nodeConcurrent)))) //id
 
-    new ChainPartitioner().insert(nodeConcurrent, partitioning) shouldBe expected
+    new AGChainPartitioner().insert(nodeConcurrent, partitioning) shouldBe expected
   }
 
   it should "add a new chain in a BSet - insert into non-empty BSet(1)" in {
@@ -106,7 +106,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2)
 
-    new ChainPartitioner().insert(nodeConcurrent, partitioning) shouldBe List(bset1, Set(Chain(2, List(node1)), Chain(0, List(nodeConcurrent))))
+    new AGChainPartitioner().insert(nodeConcurrent, partitioning) shouldBe List(bset1, Set(Chain(2, List(node1)), Chain(0, List(nodeConcurrent))))
   }
 
   it should "add a new chain in a BSet - insert into non-empty BSet(2)" in {
@@ -116,7 +116,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2, bset3)
 
-    new ChainPartitioner().insert(nodeDependentTo4, partitioning) shouldBe List(bset1, bset2, Set(Chain(4, List(node4, nodeDependentTo4))))
+    new AGChainPartitioner().insert(nodeDependentTo4, partitioning) shouldBe List(bset1, bset2, Set(Chain(4, List(node4, nodeDependentTo4))))
   }
 
   it should "append to an existing chain in the first BSet correctly - only BSet(0) exists " in {
@@ -124,7 +124,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1)
 
-    new ChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(Set(Chain(1, List(node3, nodeDependentTo3))))
+    new AGChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(Set(Chain(1, List(node3, nodeDependentTo3))))
   }
 
   it should "append to an existing chain in the first BSet correctly - BSet(1) and BSet(2) exist" in {
@@ -133,7 +133,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2)
 
-    new ChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(Set(Chain(1, List(node3, nodeDependentTo3))), bset2)
+    new AGChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(Set(Chain(1, List(node3, nodeDependentTo3))), bset2)
   }
 
   it should "append to an existing chain in an intra BSet correctly - BSet has a single chain" in {
@@ -142,7 +142,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2)
 
-    new ChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(bset1, Set(Chain(2, List(node3, nodeDependentTo3))))
+    new AGChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(bset1, Set(Chain(2, List(node3, nodeDependentTo3))))
   }
 
   it should "append to an existing chain in an intra BSet correctly - BSet has two chains" in {
@@ -151,7 +151,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2)
 
-    new ChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(bset1, Set(Chain(2, List(node1)), Chain(3, List(node3, nodeDependentTo3))))
+    new AGChainPartitioner().insert(nodeDependentTo3, partitioning) shouldBe List(bset1, Set(Chain(2, List(node1)), Chain(3, List(node3, nodeDependentTo3))))
   }
 
   it should "append to an existing chain in the last BSet correctly " in {
@@ -162,7 +162,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
     val partitioning = List(bset1, bset2, bset3)
 
 
-    new ChainPartitioner().insert(nodeDependentTo4, partitioning) shouldBe List(bset1, bset2, Set(Chain(4, List(node4, nodeDependentTo4)), Chain(5, List(node5))))
+    new AGChainPartitioner().insert(nodeDependentTo4, partitioning) shouldBe List(bset1, bset2, Set(Chain(4, List(node4, nodeDependentTo4)), Chain(5, List(node5))))
   }
 
   it should "append to an existing chain where it fits with more than one elements correctly - add into an intra BSet" in {
@@ -172,7 +172,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2, bset3)
 
-    new ChainPartitioner().insert(nodeDependentTo1And2, partitioning) shouldBe List(Set(Chain(3, List(node2))),
+    new AGChainPartitioner().insert(nodeDependentTo1And2, partitioning) shouldBe List(Set(Chain(3, List(node2))),
       Set(Chain(2, List(node1, nodeDependentTo1And2)), Chain(1, List(node3))), bset3)
   }
 
@@ -183,7 +183,7 @@ class ChainPartitionerTest extends FlatSpec with Matchers {
 
     val partitioning = List(bset1, bset2, bset3)
 
-    new ChainPartitioner().insert(nodeDependentTo4And5, partitioning) shouldBe List(bset1, Set(Chain(5, List(node5))), Set(Chain(2, List(node1)),
+    new AGChainPartitioner().insert(nodeDependentTo4And5, partitioning) shouldBe List(bset1, Set(Chain(5, List(node5))), Set(Chain(2, List(node1)),
       Chain(3, List(node2)), Chain(4, List(node4, nodeDependentTo4And5))))
   }
 }

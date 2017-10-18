@@ -2,7 +2,6 @@ package akka.dispatch
 
 import java.util.concurrent.TimeUnit
 
-import akka.dispatch.util.CmdLineUtils
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.duration.FiniteDuration

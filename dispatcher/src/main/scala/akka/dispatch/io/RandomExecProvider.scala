@@ -32,6 +32,7 @@ class RandomExecActor(randomSeed: Long) extends Actor {
   private var preds: Map[MessageId, Set[MessageId]] = Map()
   private var messages: Set[MessageId] = Set()
   private var processed: List[MessageId] = List(0)
+  private var maxConcurrentMsgs = 0 // for stats
 
   override def receive: Receive = {
 
@@ -60,7 +61,11 @@ class RandomExecActor(randomSeed: Long) extends Actor {
 
     def isEnabled(id: MessageId): Boolean = preds(id).forall(x => processed.contains(x))
 
-    messages.diff(processed.toSet).filter(isEnabled).toList match {
+    val enabledMsgs = messages.diff(processed.toSet).filter(isEnabled).toList
+
+    if(maxConcurrentMsgs < enabledMsgs.size) maxConcurrentMsgs = enabledMsgs.size
+
+    enabledMsgs match {
       case x :: xs => Some(selectRandom(x :: xs))
       case Nil => None
     }
@@ -70,6 +75,7 @@ class RandomExecActor(randomSeed: Long) extends Actor {
     FileUtils.printToFile("stats") { p =>
       p.println("Random Scheduler Stats: \n")
       p.println("RandomSeed: " + randomSeed)
+      p.println("MaxNumOfConcurrentMsgs: " + maxConcurrentMsgs)
       p.println("NumScheduledMsgs: " + processed.size)
       p.println("Schedule: " + processed.reverse)
     }

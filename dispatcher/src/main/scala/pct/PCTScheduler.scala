@@ -8,4 +8,5 @@ trait PCTScheduler {
   def getNumScheduledMsgs: Int
   def getNumChains: Int
   def getChainsOfMsgs: List[List[MessageId]]
+  def getMaxNumAvailableChains: Int
 }

@@ -6,7 +6,7 @@ import pct.{ChainId, MessageId}
 
 //todo consider updating List to Vector
 
-object ChainPartitioner {
+object AGChainPartitioner {
   case class Node(id: MessageId, preds: Set[MessageId]) // keeps preds just to check the invariant
   case class Chain(id: ChainId, elems: List[Node])
 
@@ -14,9 +14,9 @@ object ChainPartitioner {
   type Partitioning = List[BSet]
 }
 
-class ChainPartitioner extends LazyLogging {
+class AGChainPartitioner extends LazyLogging {
 
-  import ChainPartitioner._
+  import AGChainPartitioner._
   val idGen = new IdGenerator(0)
 
   var partitioning: Partitioning = List()
