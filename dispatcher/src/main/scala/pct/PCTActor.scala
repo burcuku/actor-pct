@@ -2,15 +2,16 @@ package pct
 
 import akka.actor.{Actor, Props}
 import protocol._
-import akka.dispatch.RequestForwarder
+import akka.dispatch.{PCTDispatcher, RequestForwarder}
 import akka.dispatch.util.FileUtils
 import com.typesafe.scalalogging.LazyLogging
+import pct.PCTActor.LogStats
 import pct.ag.PCTSchedulerAG
 import pct.bm.PCTSchedulerBM
 
 class PCTActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
   private val pctScheduler = if(pctOptions.alg.equals("AG")) new PCTSchedulerAG(pctOptions) else new PCTSchedulerBM(pctOptions)
-  logger.warn(pctOptions.toString)
+  logger.warn("\n PCT Actor settings: \n" + pctOptions.toString)
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
@@ -23,9 +24,11 @@ class PCTActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
       nextMessage match {
         case Some(id) =>
           logger.info("Selected message: " + id)
+          println("Selected message: " + id)
           RequestForwarder.forwardRequest(DispatchMessageRequest(id))
         case None =>
-          logger.info("Terminating")
+          logger.info("PCT Actor terminating the system")
+          println("PCT Actor terminating the system")
           logStats()
           RequestForwarder.forwardRequest(TerminateRequest)
       }
@@ -41,6 +44,7 @@ class PCTActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
       p.println("BugDepth: " + pctOptions.bugDepth)
       p.println()
       p.println("NumScheduledMsgs: " + pctScheduler.getNumScheduledMsgs)
+      p.println("MaxNumAvailableChains: " + pctScheduler.getMaxNumAvailableChains)
       p.println("NumChains: " + pctScheduler.getNumChains)
       p.println("PrioInversionPoints: " + pctScheduler.getPrioInvPoints)
       p.println("Schedule: " + pctScheduler.getSchedule)
@@ -52,4 +56,5 @@ class PCTActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
 object PCTActor {
   def props(pctOptions: PCTOptions): Props =
     Props(new PCTActor(pctOptions))
+  case object LogStats
 }

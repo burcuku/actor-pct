@@ -1,7 +1,7 @@
 package pct.ag
 
 import com.typesafe.scalalogging.LazyLogging
-import pct.ag.ChainPartitioner.Node
+import pct.ag.AGChainPartitioner.Node
 import pct.{ChainId, MessageId, PCTOptions, PCTScheduler}
 
 import scala.collection.mutable.ListBuffer
@@ -13,7 +13,7 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   private var numCurrentChangePt: Int = 0 // no priority change yet
   logger.info("Priority inversion points at messages: " + priorityChangePts)
 
-  private val partitioner = new ChainPartitioner()
+  private val partitioner = new AGChainPartitioner()
 
   // chains are sorted so that the highest in the index has the highest priority:
   private var highPriorityChains: ListBuffer[ChainId] = ListBuffer[ChainId]()
@@ -23,6 +23,7 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   private var last: Map[ChainId, Int] = Map().withDefaultValue(0)
   private var numScheduled: Int = 0
   private var schedule: ListBuffer[MessageId] = ListBuffer(0)
+  private var maxNumAvailableChains = 0 // for stats
 
   def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     predecessors.toList.sortBy(_._1).foreach(m => partitioner.insert(Node(m._1, m._2)))
@@ -35,6 +36,9 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
       // insert after "pos" number of chains
       highPriorityChains.insert(pos, c)
     })
+
+    val availableChains = getNumAvailableChains
+    if(maxNumAvailableChains < availableChains) maxNumAvailableChains = availableChains
   }
 
   def scheduleNextMessage: Option[MessageId] = getCurrentChain match {
@@ -98,10 +102,15 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   // for testing purposes:
   def getPriorityChangePts: Set[MessageId] = priorityChangePts
 
-  def getChains: List[ChainPartitioner.Chain] = {
+  def getChains: List[AGChainPartitioner.Chain] = {
     partitioner.printPartitioning()
     partitioner.getChains
   }
+
+  def getAvailableChains: List[AGChainPartitioner.Chain] =
+    partitioner.getChains.filter(c => next(c.id).isDefined && next(c.id).get.preds.forall(x => schedule.toSet.contains(x)))
+
+  def getNumAvailableChains: Int = getAvailableChains.size
 
   def getSchedule: List[MessageId] = schedule.toList
   // the messages at which the priority will be inverted
@@ -109,4 +118,6 @@ class PCTSchedulerAG(pctOptions: PCTOptions) extends PCTScheduler with LazyLoggi
   def getNumScheduledMsgs: Int = numScheduled
   def getNumChains: Int = partitioner.getChains.size
   def getChainsOfMsgs: List[List[MessageId]] = partitioner.getChains.map(c => c.elems.map(node => node.id))
+
+  def getMaxNumAvailableChains: Int = maxNumAvailableChains
 }

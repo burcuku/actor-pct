@@ -1,6 +1,6 @@
 package pct
 
-import akka.dispatch.DispatcherOptions.{config, uiChoicePath}
+import akka.dispatch.DispatcherOptions.config
 import com.typesafe.config.ConfigFactory
 
 object Options {

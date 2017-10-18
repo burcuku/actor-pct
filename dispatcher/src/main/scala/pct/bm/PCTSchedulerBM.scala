@@ -74,4 +74,8 @@ class PCTSchedulerBM(options: PCTOptions) extends PCTScheduler with LazyLogging 
   def getNumScheduledMsgs: Int = msgIndex
   def getNumChains: Int = pctDecomposition.getChains.size
   def getChainsOfMsgs: List[List[MessageId]] = pctDecomposition.getChains.map(x => x.toList)
+
+  // todo update with the size of chains with enabled events:
+  def getMaxNumAvailableChains: Int = 0
+
 }

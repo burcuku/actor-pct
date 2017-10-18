@@ -2,7 +2,7 @@ package pct.ag
 
 import org.scalatest.{FlatSpec, Matchers}
 import pct.{MessageId, PCTOptions}
-import pct.ag.ChainPartitioner.{Chain, Node}
+import pct.ag.AGChainPartitioner.{Chain, Node}
 
 class PCTSchedulerAGTest extends FlatSpec with Matchers {
 

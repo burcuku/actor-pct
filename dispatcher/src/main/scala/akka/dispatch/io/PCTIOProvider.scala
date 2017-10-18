@@ -2,7 +2,7 @@ package akka.dispatch.io
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch.RequestForwarder
-import pct.{Options, PCTActor}
+import pct.PCTActor
 import protocol.{InitRequest, Response}
 
 class PCTIOProvider(pctOptions: pct.PCTOptions) extends IOProvider {

@@ -76,8 +76,8 @@ object PCTDispatcher {
   def terminateDispatcher(): Unit = sendToDispatcher(EndDispatcher)
 
   def awaitTermination(): Unit = actorSystem match {
-    case Some(system) => Await.result(system.whenTerminated, Duration.Inf)
-    case None => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Actor system is not set yet.")
+    case Some(system) if system.dispatcher.isInstanceOf[PCTDispatcher] => Await.result(system.whenTerminated, Duration.Inf)
+    case None => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Actor system for PCT Dispatcher is not set.")
   }
 
   /**
@@ -86,6 +86,7 @@ object PCTDispatcher {
   var actorSystem: Option[ActorSystem] = None
   var helperActor: Option[ActorRef] = None
   var timerActor: Option[ActorRef] = None
+  var terminated = false
 
   /**
     * The dispatcher gets user/algorithm inputs via ioProvider
@@ -99,7 +100,7 @@ object PCTDispatcher {
     * e.g., when actor system is defined in a library but the dispatcher must be enabled after sending some messages)
     * @param system
     */
-  def setActorSystem(system: ActorSystem): Unit = actorSystem = Some(system)
+  def setActorSystem(system: ActorSystem): Unit = if (system.dispatcher.isInstanceOf[PCTDispatcher]) actorSystem = Some(system)
 
   val defaultPCTOptions = pct.PCTOptions(Options.randomSeed, Options.maxMessages, Options.bugDepth)
 
@@ -190,8 +191,11 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * Terminates the actor system
     */
   private def handleTerminate: Any = actorSystem match {
-    case Some(system) if DispatcherOptions.willTerminate => system.terminate
+    case Some(system) if DispatcherOptions.willTerminate =>
+      logInfo()
+      system.terminate
     case Some(system)  =>
+      terminated = true // terminate is set but the system is not terminated
       printLog(CmdLineUtils.LOG_WARNING,  "System terminate request received. Not configured to force termination.")
       logInfo()
     case None => printLog(CmdLineUtils.LOG_WARNING,  "Cannot terminate")
@@ -259,7 +263,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
   private def processAskMessages(): Unit = runOnExecutor(toRunnable(() => {
     val list = askPatternMessages.toList
     //todo revise for nested ask requests!
-    if(list.nonEmpty) printLog(CmdLineUtils.LOG_WARNING, "Handling ask messages sent when the actor was not ready... ")
+    if(list.nonEmpty) printLog(CmdLineUtils.LOG_DEBUG, "Handling ask messages sent when the actor was not ready... ")
     askPatternMessages = ListBuffer()
     list.foreach(x => {
       printLog(CmdLineUtils.LOG_DEBUG, "Handling ask pattern message to " + x._1.self.path + " " + x._2)
@@ -292,7 +296,13 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     * @param invocation envelope of the intercepted message
     */
   override def dispatch(receiver: ActorCell, invocation: Envelope): Unit = {
-
+    if(terminated) { // if not forced for termination and more messages arrive
+      CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "More messages after PCTDispatcher is terminated:\n" + invocation)
+      val mbox = receiver.mailbox
+      mbox.enqueue(receiver.self, invocation)
+      registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
+      return
+    }
     invocation match {
       // Handle Dispatcher messages
       case Envelope(msg, _) if msg.isInstanceOf[DispatcherMsg] =>  msg match {
@@ -366,7 +376,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
 
       // Do not intercept http connection messages
       case _ if httpMsgPrefixSet.exists(x => invocation.message.toString.startsWith(x)) =>
-        printLog(CmdLineUtils.LOG_WARNING, "-- HTTP Message running. " + receiver.self + " " + invocation)
+        printLog(CmdLineUtils.LOG_DEBUG, "-- HTTP Message running. " + receiver.self + " " + invocation)
         val mbox = receiver.mailbox
         mbox.enqueue(receiver.self, invocation)
         registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
@@ -375,7 +385,7 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
       case _ =>
         // if the message is sent by the Ask Pattern:
         if (invocation.sender.isInstanceOf[PromiseActorRef]) {
-          printLog(CmdLineUtils.LOG_DEBUG, "-- Message by AskPattern. Sending for for execution. " + receiver.self + " " + invocation)
+          printLog(CmdLineUtils.LOG_INFO, "-- Message by AskPattern. Sending for for execution. " + receiver.self + " " + invocation)
           //checkAndWaitForActorBehavior(receiver)
           //val mbox = receiver.mailbox
           //mbox.enqueue(receiver.self, invocation)
@@ -460,12 +470,11 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   override def shutdown: Unit = {
     printLog(CmdLineUtils.LOG_INFO, "Shutting down.. ")
-    logInfo()
     super.shutdown
     System.exit(0)
   }
 
-  private def logInfo() = {
+  def logInfo() = {
     FileUtils.printToFile("allEvents") { p =>
       state.getAllEvents.foreach(p.println)
     }
