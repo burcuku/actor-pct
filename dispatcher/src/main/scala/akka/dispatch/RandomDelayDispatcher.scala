@@ -14,11 +14,17 @@ import scala.util.Random
 
 
 object RandomDelayDispatcher {
-  val random = new Random(RandomDelayOptions.randomSeed)
+  var randomSeed = RandomDelayOptions.randomSeed
   var maxDelay: Int = RandomDelayOptions.MIN_POSSIBLE_DELAY // no delay
 
+  val random = new Random(randomSeed)
+
   // to be set programmatically, based on app parameters
-  def setSeed(randomSeed: Long): Unit = random.setSeed(randomSeed)
+  def setSeed(seed: Long): Unit = {
+    random.setSeed(seed)
+    randomSeed = seed
+  }
+
   def setMaxDelay(delay: Int): Unit =
     if(delay > 0 && delay <= RandomDelayOptions.MAX_POSSIBLE_DELAY) maxDelay = delay
     else println("The delay parameter is not between " + RandomDelayOptions.MIN_POSSIBLE_DELAY + " and " + RandomDelayOptions.MAX_POSSIBLE_DELAY)
@@ -61,6 +67,9 @@ final class RandomDelayDispatcher(_configurator: MessageDispatcherConfigurator,
 
     // do not delay or count ask pattern messages
     case _ =>
+      val mbox = receiver.mailbox
+      mbox.enqueue(receiver.self, invocation)
+
       if(!invocation.sender.isInstanceOf[PromiseActorRef]) {
         if(random.nextBoolean()) {
           val delay = random.nextInt(maxDelay)
@@ -74,8 +83,6 @@ final class RandomDelayDispatcher(_configurator: MessageDispatcherConfigurator,
         numScheduledMsgs = numScheduledMsgs + 1
       }
 
-      val mbox = receiver.mailbox
-      mbox.enqueue(receiver.self, invocation)
       registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
   }
 
@@ -88,8 +95,8 @@ final class RandomDelayDispatcher(_configurator: MessageDispatcherConfigurator,
   def logInfo(): Unit = {
     FileUtils.printToFile("stats") { p =>
       p.println("Random Delayer Scheduler Stats: \n")
-      p.println("RandomSeed: " + RandomDelayOptions.randomSeed)
-      p.println("MaxDelay: " + RandomDelayOptions.maxDelay)
+      p.println("RandomSeed: " + randomSeed)
+      p.println("MaxDelay: " + maxDelay)
       p.println()
       p.println("NumScheduledMsgs: " + numScheduledMsgs)
       p.println("NumDelayedMsgs: " + numDelayedMsgs)
