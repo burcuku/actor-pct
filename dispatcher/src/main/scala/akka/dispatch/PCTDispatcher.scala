@@ -382,6 +382,13 @@ final class PCTDispatcher(_configurator: MessageDispatcherConfigurator,
         registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
         return
 
+      case _ if DispatcherOptions.noInterceptMsgs.exists(x => invocation.message.toString.startsWith(x)) =>
+        printLog(CmdLineUtils.LOG_DEBUG, "Not intercepted: " + receiver.self + " " + invocation)
+        val mbox = receiver.mailbox
+        mbox.enqueue(receiver.self, invocation)
+        registerForExecution(mbox, hasMessageHint = true, hasSystemMessageHint = false)
+        return
+
       case _ =>
         // if the message is sent by the Ask Pattern:
         if (invocation.sender.isInstanceOf[PromiseActorRef]) {

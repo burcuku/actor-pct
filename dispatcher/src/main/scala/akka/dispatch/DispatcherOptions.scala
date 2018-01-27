@@ -3,6 +3,7 @@ package akka.dispatch
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.config.{Config, ConfigFactory}
+import collection.JavaConverters._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -18,6 +19,7 @@ object DispatcherOptions {
   private val willTerminatePath = "pct-dispatcher.willTerminate"
   private val maxNumTimeStepsPath = "pct-dispatcher.maxNumTimeSteps"
   private val networkDelayPath = "pct-dispatcher.networkDelay"
+  private val noInterceptMsgsPath = "pct-dispatcher.noInterceptMsgs"
   val defaultUiChoice = "CmdLine"
 
   val config: Config = ConfigFactory.load(debuggerConfigFile)
@@ -31,6 +33,8 @@ object DispatcherOptions {
   val maxNumTimeSteps: Int = if(config.hasPath(maxNumTimeStepsPath)) config.getInt(maxNumTimeStepsPath) else 10
 
   val networkDelay: Int = if(config.hasPath(networkDelayPath)) config.getInt(networkDelayPath) else 0
+
+  val noInterceptMsgs = if(config.hasPath(noInterceptMsgsPath)) config.getStringList(noInterceptMsgsPath).asScala.toList else List()
 
   lazy val timeStep: FiniteDuration =
     if(config.hasPath(timeStepPath)) FiniteDuration(config.getDuration(timeStepPath, TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
