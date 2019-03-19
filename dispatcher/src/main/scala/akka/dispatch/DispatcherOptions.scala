@@ -75,4 +75,10 @@ object DispatcherOptions {
     if (Set("AG", "BM").contains(option)) option else defaultAlgorithm
   } else defaultAlgorithm
 
+  private val racyMessagePatternsStr = "testing-dispatcher.racyMessages"
+  val racyMessagePattern: Option[List[String]] =
+    if(config.hasPath(racyMessagePatternsStr))  Some(config.getStringList(racyMessagePatternsStr).asScala.toList)
+    else None
+
+
 }
