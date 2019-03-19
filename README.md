@@ -23,6 +23,7 @@ Build the project and publish its libraries locally:
 cd dispatcher
 sbt compile
 sbt publishLocal
+sbt publishM2  // to use in the Maven projects
 ```
 
 
@@ -32,3 +33,15 @@ Run the example application:
 cd apps/pingpong
 sbt run
 ```
+
+To add the dispatcher to your maven project dependencies, add the following to your pom.xml.
+
+ ```
+ <dependency>
+   <groupId>com.pct</groupId>
+   <artifactId>actor-pct_2.11</artifactId>
+   <version>1.0</version>
+ </dependency>
+  ```
+  
+  

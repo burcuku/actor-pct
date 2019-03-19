@@ -26,4 +26,11 @@ object ReflectionUtils {
     val res = method.invoke(x, args: _*)
     res
   }
+
+  def createNewEnvelope(message: Object, sender: ActorRef): Envelope = {
+    val testClass = classOf[Envelope]
+    val ctor = testClass.getDeclaredConstructor(classOf[Any], classOf[ActorRef])
+    ctor.setAccessible(true)
+    ctor.newInstance(message, sender)
+  }
 }

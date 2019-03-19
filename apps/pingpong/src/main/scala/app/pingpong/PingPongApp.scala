@@ -1,7 +1,7 @@
 package app.pingpong
 
 import akka.actor.{ActorSystem, Props}
-import akka.dispatch.PCTDispatcher
+import akka.dispatch.TestingDispatcher
 
 object PingPongApp extends App {
   val system = ActorSystem("sys")
@@ -14,10 +14,10 @@ object PingPongApp extends App {
   pingActor1 ! PingActor.Initialize
   pingActor2 ! PingActor.Initialize
 
-  PCTDispatcher.setActorSystem(system)
-  PCTDispatcher.setUp()
+  TestingDispatcher.setActorSystem(system)
+  TestingDispatcher.setUp()
   //system.awaitTermination()
-  PCTDispatcher.awaitTermination()
+  TestingDispatcher.awaitTermination()
 }
 
 
