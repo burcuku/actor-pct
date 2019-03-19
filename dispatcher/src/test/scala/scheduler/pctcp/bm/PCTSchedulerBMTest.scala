@@ -1,7 +1,8 @@
 package scheduler.pctcp.bm
 
+import akka.dispatch.DummyProgramEvent
 import org.scalatest.{Matchers, WordSpec}
-import scheduler.pctcp.PCTOptions
+import pctcp.PCTCPOptions
 
 class PCTSchedulerBMTest extends WordSpec with Matchers {
   /*val message0 = Message(20L, Set())
@@ -19,11 +20,13 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
   
   "getNextMessage" should {
     "test1: schedule next message according to a randomly assigned priority to its corresponding chain" in {
-      val pctOptions = PCTOptions(maxMessages = 10, bugDepth = 1)
+      val pctOptions = PCTCPOptions(maxMessages = 10, bugDepth = 1)
       val pctStrategy = new PCTCPSchedulerBM(pctOptions)
       
       //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
-      pctStrategy.addNewMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
+      pctStrategy.addNewMessages(List((0, DummyProgramEvent), (1, DummyProgramEvent), (2, DummyProgramEvent), (3, DummyProgramEvent), (4, DummyProgramEvent),
+        (5, DummyProgramEvent), (6, DummyProgramEvent), (7, DummyProgramEvent), (8, DummyProgramEvent), (9, DummyProgramEvent)),
+        Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       pctStrategy.printPrioInvPoints
       
       for (i <- 0 until 10)
@@ -33,13 +36,15 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
     }
     
     "test2: schedule next message according to a randomly assigned priority to its corresponding chain" in {
-      val pctOptions = PCTOptions(maxMessages = 10, bugDepth = 2)
+      val pctOptions = PCTCPOptions(maxMessages = 10, bugDepth = 2)
       val pctStrategy = new PCTCPSchedulerBM(pctOptions)
       //List(message0, message1, message2, message3, message4, message5, message6, message7, message8, message9).foreach(m => m.received = false)
               
       //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
       //pctStrategy.setNewMessages(Map(20L->Set(), 21L->Set(20L), 22L->Set(21L), 23L->Set(), 24L->Set(23L), 25L->Set(22L, 24L), 26L->Set(25L), 27L->Set(24L), 28L->Set(27L), 29L->Set(28L)))
-      pctStrategy.addNewMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
+      pctStrategy.addNewMessages(List((0, DummyProgramEvent), (1, DummyProgramEvent), (2, DummyProgramEvent), (3, DummyProgramEvent), (4, DummyProgramEvent),
+        (5, DummyProgramEvent), (6, DummyProgramEvent), (7, DummyProgramEvent), (8, DummyProgramEvent), (9, DummyProgramEvent)),
+        Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       pctStrategy.printPrioInvPoints
       
       for (i <- 0 until 10)
@@ -49,13 +54,14 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
     }
     
     "test3: schedule next message according to a randomly assigned priority to its corresponding chain" in {
-      val pctOptions = PCTOptions(maxMessages = 4, bugDepth = 1)
+      val pctOptions = PCTCPOptions(maxMessages = 4, bugDepth = 1)
       val pctStrategy = new PCTCPSchedulerBM(pctOptions)
       //List(message0, message1, message2, message3, message4, message5, message6, message7, message8, message9).foreach(m => m.received = false)
               
       //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
       //pctStrategy.setNewMessages(Map(20L->Set(), 21L->Set(20L), 22L->Set(21L), 23L->Set(), 24L->Set(23L), 25L->Set(22L, 24L), 26L->Set(25L), 27L->Set(24L), 28L->Set(27L), 29L->Set(28L)))
-      pctStrategy.addNewMessages(Map(0L->Set(), 1L->Set(), 2L->Set(0L, 1L), 3L->Set(0L)))
+      pctStrategy.addNewMessages(List((0, DummyProgramEvent), (1, DummyProgramEvent), (2, DummyProgramEvent), (3, DummyProgramEvent)),
+        Map(0L->Set(), 1L->Set(), 2L->Set(0L, 1L), 3L->Set(0L)))
       pctStrategy.printPrioInvPoints
       
       for (i <- 0 until 4)

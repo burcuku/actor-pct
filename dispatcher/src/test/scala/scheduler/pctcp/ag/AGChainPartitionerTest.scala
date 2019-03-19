@@ -1,7 +1,7 @@
 package scheduler.pctcp.ag
 
 import org.scalatest.{FlatSpec, Matchers}
-import scheduler.pctcp.MessageId
+import protocol.MessageId
 import scheduler.pctcp.ag.AGChainPartitioner.{Chain, Node, Partitioning}
 
 class AGChainPartitionerTest extends FlatSpec with Matchers {

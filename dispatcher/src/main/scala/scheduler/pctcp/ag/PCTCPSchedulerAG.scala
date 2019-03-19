@@ -1,5 +1,6 @@
 package scheduler.pctcp.ag
 
+import akka.dispatch.ProgramEvent
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.PCTCPOptions
 import protocol.MessageId
@@ -28,7 +29,7 @@ class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with L
   private var schedule: ListBuffer[MessageId] = ListBuffer(0)
   private var maxNumAvailableChains = 0 // for stats
 
-  def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]): Unit = {
+  def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     predecessors.toList.sortBy(_._1).foreach(m => partitioner.insert(Node(m._1, m._2)))
 
     val chains = partitioner.getChains

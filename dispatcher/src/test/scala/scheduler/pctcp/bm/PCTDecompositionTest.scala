@@ -1,12 +1,12 @@
 package scheduler.pctcp.bm
 
 import org.scalatest.{Matchers, WordSpec}
-import scheduler.pctcp.PCTOptions
+import pctcp.PCTCPOptions
 
 class PCTDecompositionTest extends WordSpec with Matchers {
 
   //val pctOptions = PCTOptions(0L)
-  val pctOptions = PCTOptions()
+  val pctOptions = PCTCPOptions()
   
   /*val message0 = Message(30L, Set())
   val message1 = Message(31L, Set(30L))
@@ -23,7 +23,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
   
   "extend" should {
     "place a message greedily into a chain" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       
@@ -79,7 +79,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
   
   "minimizeChains" should {
     "test1: minimize the number of chains (width of partial order)" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(3L, 4L, 0L, 1L, 2L, 5L, 7L, 8L, 6L, 9L))  
@@ -100,7 +100,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
     }
     
     "test2: minimize the number of chains (width of partial order)" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(3L, 4L, 0L, 1L, 2L, 5L, 6L))  
@@ -119,7 +119,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
     }
 
     "test3: minimize the number of chains (width of partial order)" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(3L, 7L, 4L, 8L, 9L))  
@@ -136,7 +136,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
     }  
     
     "test4: minimize the number of chains (width of partial order)" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L))  
@@ -155,7 +155,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
     }
     
     "test5: minimize the number of chains (width of partial order)" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(), 2L->Set(0L, 1L), 3L->Set(1L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(1L, 0L, 2L, 3L))  
@@ -178,7 +178,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
   
   "shuffleChains" should {
     "permute chains randomly" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(3L, 4L, 0L, 1L, 2L, 5L, 6L))  
@@ -196,7 +196,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
   
   "getMinEnabledMessage" should {
     "compute the first enabled message in the list of chains" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(3L, 4L, 0L, 1L, 2L, 5L, 7L, 8L, 6L, 9L))   
@@ -228,7 +228,7 @@ class PCTDecompositionTest extends WordSpec with Matchers {
   
   "decreasePriority" should {
     "move the chain of a message to the end of chains list" in {
-      val pctDecomposition = new PCTDecomposition(pctOptions)
+      val pctDecomposition = new PCTDecomposition()
       pctDecomposition.putMessages(Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       //pctDecomposition.getChains shouldBe empty
       pctDecomposition.extend(List(3L, 4L, 0L, 1L, 2L, 5L, 7L, 8L, 6L, 9L))        

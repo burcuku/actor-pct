@@ -1,5 +1,6 @@
 package scheduler.pctcp.bm
 
+import akka.dispatch.{DummyProgramEvent, ProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.PCTCPOptions
 import protocol.MessageId
@@ -13,8 +14,8 @@ class PCTCPSchedulerBM(options: PCTCPOptions) extends PCTCPScheduler with LazyLo
   private var msgIndex: Int = 0
   private val randInt = new Random //new Random(options.randomSeed)
 
-  private val pctDecomposition = new PCTDecomposition(options)
-  addNewMessages(Map(0L->Set()))
+  private val pctDecomposition = new PCTDecomposition()
+  addNewMessages(List((0, DummyProgramEvent)), Map(0L->Set()))
   /*private val prioInvPoints: List[Int] = (0 until options.bugDepth)
     .map(i => randInt.nextInt(options.maxMessages))
     .toSet*/  
@@ -49,7 +50,7 @@ class PCTCPSchedulerBM(options: PCTCPOptions) extends PCTCPScheduler with LazyLo
     schedule.foreach(id => println(id))
   }
   
-  def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]) = {
+  def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) = {
     logPredecessors(predecessors)
     pctDecomposition.putMessages(predecessors)
     pctDecomposition.extend(predecessors.keys.toList)

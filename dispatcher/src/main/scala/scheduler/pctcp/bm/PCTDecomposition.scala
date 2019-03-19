@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Random
 
-class PCTDecomposition(options: PCTCPOptions) {
+class PCTDecomposition {
   type ReducingSeq = Tuple3[MessageId, MessageId, Map[MessageId, (MessageId, MessageId)]]
 
   private val messagesDependencies: Messages = new Messages()

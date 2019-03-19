@@ -17,3 +17,6 @@ case class MessageSent(receiver: Cell, msg: Envelope) extends ProgramEvent
 case class MessageReceived(receiver: Cell, id: MessageId, msg: Envelope) extends ProgramEvent
 /** Message with id is dropped **/
 case class MessageDropped(receiver: Cell, id: MessageId, msg: Envelope) extends ProgramEvent
+
+/** As the initial event to be sent and also to be used in tests **/
+case object DummyProgramEvent extends ProgramEvent

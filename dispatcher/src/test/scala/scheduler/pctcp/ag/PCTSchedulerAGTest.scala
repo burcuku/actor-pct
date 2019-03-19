@@ -1,12 +1,14 @@
 package scheduler.pctcp.ag
 
+import akka.dispatch.DummyProgramEvent
 import org.scalatest.{FlatSpec, Matchers}
-import scheduler.pctcp.{MessageId, PCTOptions}
+import pctcp.PCTCPOptions
+import protocol.MessageId
 import scheduler.pctcp.ag.AGChainPartitioner.{Chain, Node}
 
 class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
-  val ps = new PCTCPSchedulerAG(PCTOptions(randomSeed = 12345, maxMessages = 8, bugDepth = 1))
+  val ps = new PCTCPSchedulerAG(PCTCPOptions(randomSeed = 12345, maxMessages = 8, bugDepth = 1))
 
   var msgs: Map[MessageId, Set[MessageId]] = Map()
   val elems: List[MessageId] = List(0, 1, 2, 3, 4, 5, 6, 7)
@@ -14,7 +16,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   val nodes: List[Node] = elems.zip(preds).map(pair => Node(pair._1, pair._2)).sortBy(_.id)
 
   // create another ps with a priority change point after the first message
-  val ps2 = new PCTCPSchedulerAG(PCTOptions(randomSeed = 12345, maxMessages = 4, bugDepth = 2))
+  val ps2 = new PCTCPSchedulerAG(PCTCPOptions(randomSeed = 12345, maxMessages = 4, bugDepth = 2))
 
   // schedule
   it should "return None for scheduling when empty" in {
@@ -23,7 +25,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   // add element
   it should "add msg into empty chain/partitioning" in {
-    ps.addNewMessages(Map(elems.head -> preds.head))
+    ps.addNewMessages(List((0, DummyProgramEvent)), Map(elems.head -> preds.head))
 
     // chain with id 0 is created
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()))))
@@ -39,7 +41,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   // add element
   it should "append msg into a chain/partitioning with a single element" in {
-    ps.addNewMessages(Map(elems(1) -> preds(1)))
+    ps.addNewMessages(List((1, DummyProgramEvent)), Map(elems(1) -> preds(1)))
 
     // inserted into chain with id 0
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)))))
@@ -49,7 +51,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   // add element
   it should "add a concurrent msg and have two chains/priorities" in {
-    ps.addNewMessages(Map(elems(2) -> preds(2)))
+    ps.addNewMessages(List((2, DummyProgramEvent)), Map(elems(2) -> preds(2)))
 
     // added a chain with id 1
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)))), Chain(1, List(Node(2, Set(0)))))
@@ -69,7 +71,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "append a msg to one of the possible two chains (with id 0 in BSet1)" in {
-    ps.addNewMessages(Map(elems(3) -> preds(3)))
+    ps.addNewMessages(List((3, DummyProgramEvent)), Map(elems(3) -> preds(3)))
 
     // inserted into chain with id 0
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)))))
@@ -77,7 +79,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "append a msg to a chain (with id 1 in BSet2)" in {
-    ps.addNewMessages(Map(elems(4) -> preds(4)))
+    ps.addNewMessages(List((4, DummyProgramEvent)), Map(elems(4) -> preds(4)))
 
     // inserted into chain with id 1
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)), Node(4, Set(2)))))
@@ -85,7 +87,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "add a concurrent msg to a new chain (with id 2 in BSet2)" in {
-    ps.addNewMessages(Map(elems(5) -> preds(5)))
+    ps.addNewMessages(List((5, DummyProgramEvent)), Map(elems(5) -> preds(5)))
 
     // inserted into chain with id 2
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)), Node(4, Set(2)))),
@@ -109,7 +111,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "append a msg to a chain (with id 2 in BSet2)" in {
-    ps.addNewMessages(Map(elems(6) -> preds(6)))
+    ps.addNewMessages(List((6, DummyProgramEvent)), Map(elems(6) -> preds(6)))
 
     // inserted into chain with id 2
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)), Node(4, Set(2)))),
@@ -129,8 +131,8 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   it should "decrease priority at priority change point" in {
     // use ps2 with a priority inversion point
-    // add elements
-    elems.zip(preds).sortBy(_._1).foreach(p => ps2.addNewMessages(Map(p._1 -> p._2)))
+    // add elements  -- (note that the forst param to addNewMessages is not used, just passed an empty list)
+    elems.zip(preds).sortBy(_._1).foreach(p => ps2.addNewMessages(List(), Map(p._1 -> p._2)))
 
     // random seed 12345 assigns chains:
     // Chain(0,List(Node(0,Set()), Node(1,Set(0)), Node(3,Set(0, 1))))
@@ -176,7 +178,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
     ps2.next(0) shouldBe Some(nodes(1))
 
     // add a new message to chain2
-    ps2.addNewMessages(Map(16.asInstanceOf[MessageId] -> Set(6.asInstanceOf[MessageId])))
+    ps2.addNewMessages(List((16, DummyProgramEvent)), Map(16.asInstanceOf[MessageId] -> Set(6.asInstanceOf[MessageId])))
 
     // now, the current chain is chain2
     ps2.getCurrentChain shouldBe Some(2)
