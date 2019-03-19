@@ -13,14 +13,12 @@ class PCTCPStrategy(options: SchedulerOptions) extends SchedulingStrategy {
     else  PCTCPOptions(DispatcherOptions.randomSeed, DispatcherOptions.maxMessages, DispatcherOptions.bugDepth)
 
   override def setUp(system: ActorSystem): Unit = {
-    pctcpActor = Some(system.actorOf(PCTCPActor.props(pctcpOptions), "PCTActor"))
+    pctcpActor = Some(system.actorOf(PCTCPActor.props(pctcpOptions), "PCTCPActor"))
     DispatcherInterface.forwardRequest(InitRequest)
   }
 
-  def putResponse(response: Response): Unit = {
-    pctcpActor match {
-      case Some(actor) => actor ! response
-      case None => println("The actor for PCT algorithm is not created.")
-    }
+  def putResponse(response: Response): Unit = pctcpActor match {
+    case Some(actor) => actor ! response
+    case None => println("The actor for PCT algorithm is not created.")
   }
 }

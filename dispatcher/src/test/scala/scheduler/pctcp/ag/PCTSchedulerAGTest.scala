@@ -139,11 +139,12 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
     // Chain(1,List(Node(2,Set(0)), Node(4,Set(2))))
     // Chain(2,List(Node(5,Set(2)), Node(6,Set(2, 5))))
 
+    //println(ps.getPrioInvPoints)
     // priorities: List(1, 0, 2)
-    // priority change at 1
+    // priority change at 1 ??
 
     ps2.getPriorities shouldBe List(1, 0, 2)
-    ps2.getPriorityChangePts shouldBe Set(1) // change point before the message (m1) in Chain 0
+    ps2.getPriorityChangePts shouldBe List(1) // change point before the message (m1) in Chain 0
 
     // chain1's head is node2
     ps2.next(1) shouldBe Some(nodes(2))

@@ -12,14 +12,13 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.pattern.PromiseActorRef
 import com.typesafe.config.Config
-import protocol.{ErrorResponse, AddedEvents}
+import protocol.{AddedEvents, ErrorResponse}
 import scheduler.{NOOptions, SchedulerOptions, SchedulingStrategy}
 import scheduler.dpos.DPOSStrategy
-import scheduler.pctcp.PCTCPStrategy
+import scheduler.pctcp.{PCTCPStrategy, TaPCTCPStrategy}
 import scheduler.pos.POSStrategy
 import scheduler.random.RandomWalkStrategy
 import scheduler.rapos.RaposStrategy
-import scheduler.tapctcp.TaPCTCPStrategy
 import scheduler.user.UserInputStrategy
 import time.TimerActor
 import util.{CmdLineUtils, DispatcherUtils, FileUtils, ReflectionUtils}
@@ -136,16 +135,16 @@ object TestingDispatcher {
           printLog(CmdLineUtils.LOG_INFO, "Input choice: PCTCP algorithm")
           strategy = new PCTCPStrategy(schedulerOptions)
         case "TAPCTCP" =>
-          printLog(CmdLineUtils.LOG_INFO, "Input choice: PCTCP algorithm")
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: TAPCTCP algorithm")
           strategy = new TaPCTCPStrategy(schedulerOptions)
         case "POS" =>
-          printLog(CmdLineUtils.LOG_INFO, "Input choice: PCTCP algorithm")
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: POS algorithm")
           strategy = new POSStrategy(schedulerOptions)
         case "DPOS" =>
-          printLog(CmdLineUtils.LOG_INFO, "Input choice: PCTCP algorithm")
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: DPOS algorithm")
           strategy = new DPOSStrategy(schedulerOptions)
         case "RAPOS" =>
-          printLog(CmdLineUtils.LOG_INFO, "Input choice: PCTCP algorithm")
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: RAPOS algorithm")
           strategy = new RaposStrategy(schedulerOptions)
         case "RANDOM" =>
           printLog(CmdLineUtils.LOG_INFO, "Input choice: Random walk")

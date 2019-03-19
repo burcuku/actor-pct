@@ -11,13 +11,6 @@ trait Scheduler {
   def getNumScheduledMsgs: Int
 }
 
-object Scheduler {
-
-  type ChainId = Long
-
-
-}
-
 trait SchedulerOptions
 
 object NOOptions extends SchedulerOptions

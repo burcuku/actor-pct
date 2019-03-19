@@ -2,9 +2,8 @@ package scheduler.pctcp.ag
 
 import akka.dispatch.ProgramEvent
 import com.typesafe.scalalogging.LazyLogging
-import pctcp.PCTCPOptions
+import pctcp.{ChainId, PCTCPOptions}
 import protocol.MessageId
-import scheduler.Scheduler.ChainId
 import scheduler.pctcp.PCTCPScheduler
 import scheduler.pctcp.ag.AGChainPartitioner.Node
 
@@ -13,16 +12,15 @@ import scala.util.Random
 
 class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with LazyLogging {
   private val randInt = new Random(pctcpOptions.randomSeed)
-  private val priorityChangePts: Set[MessageId] = Array.fill(pctcpOptions.bugDepth-1)(randInt.nextInt(pctcpOptions.maxMessages).asInstanceOf[MessageId]).toSet
-  private var numCurrentChangePt: Int = 0 // no priority change yet
+  private val priorityChangePts: List[MessageId] =  getRandomChangePoints(pctcpOptions.bugDepth-1)
   logger.info("Priority inversion points at messages: " + priorityChangePts)
-
   private val partitioner = new AGChainPartitioner()
 
   // chains are sorted so that the highest in the index has the highest priority:
   private var highPriorityChains: ListBuffer[ChainId] = ListBuffer[ChainId]()
-  // lower prioroties keep the chains with priorities 0 to d-2
+  // lower priorities keep the chains with priorities 0 to d-2
   private var reducedPriorityChains: Array[ChainId] = Array.fill(pctcpOptions.bugDepth-1)(-1)
+  private val priorityChangedAt: ListBuffer[MessageId] = new ListBuffer()
 
   private var last: Map[ChainId, Int] = Map().withDefaultValue(0)
   private var numScheduled: Int = 0
@@ -68,16 +66,16 @@ class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with L
     val nextMsg = next(chainId).get.id
     logger.debug("Priority change at message: " + nextMsg)
 
-    if(priorityChangePts.contains(nextMsg) && priorityChangePts.size != numCurrentChangePt && reducedPriorityChains(priorityChangePts.size - numCurrentChangePt - 1) != chainId) {
-      logger.debug("Changing priority of chain: " + chainId + " to " + (priorityChangePts.size - numCurrentChangePt - 1))
+    if(priorityChangePts.contains(nextMsg) && !priorityChangedAt.contains(nextMsg)) {
+      logger.debug("Changing priority of chain: " + chainId + " to " + priorityChangePts.indexOf(nextMsg))
       highPriorityChains = highPriorityChains.-(chainId)
 
       // if its priority was reduces before, clean its prev index
       val prevIndex = reducedPriorityChains.indexWhere(_ == chainId)
       if(prevIndex != -1) reducedPriorityChains(prevIndex) = -1
 
-      reducedPriorityChains(priorityChangePts.size - numCurrentChangePt - 1) = chainId
-      numCurrentChangePt += 1
+      reducedPriorityChains(priorityChangePts.indexOf(nextMsg)) = chainId
+      priorityChangedAt.append(nextMsg)
       logger.debug("Chains ordered by priority after: " + highPriorityChains.toList.reverse + reducedPriorityChains.toList.reverse)
 
       // ensured to have at least one enabled chain (we have at least one message)
@@ -104,11 +102,30 @@ class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with L
   def getPriorities: List[ChainId] = (highPriorityChains.toList.reverse ++ reducedPriorityChains.toList.reverse).filter(_ != -1)
 
   // for testing purposes:
-  def getPriorityChangePts: Set[MessageId] = priorityChangePts
+  def getPriorityChangePts: List[MessageId] = priorityChangePts
 
   def getChains: List[AGChainPartitioner.Chain] = {
     partitioner.printPartitioning()
     partitioner.getChains
+  }
+
+  private def getRandomChangePoints(numChPoints: Int): List[MessageId] = {
+    var counter = 1
+    var allPossibleChPoints = new ListBuffer[Int]()
+    println(allPossibleChPoints)
+
+    (0 until pctcpOptions.maxMessages).foreach( i => {
+      allPossibleChPoints.append(counter)
+      counter += 1
+    })
+
+    def getRandomFromList: Int = {
+      val v = randInt.nextInt(allPossibleChPoints.length)
+      allPossibleChPoints.remove(v)
+      v
+    }
+
+    (0 until numChPoints).toList.map(i => getRandomFromList.asInstanceOf[MessageId])
   }
 
   def getAvailableChains: List[AGChainPartitioner.Chain] =

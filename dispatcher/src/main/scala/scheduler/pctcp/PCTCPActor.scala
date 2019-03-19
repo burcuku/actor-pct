@@ -11,7 +11,7 @@ import scheduler.pctcp.bm.PCTCPSchedulerBM
 
 class PCTCPActor(pctOptions: PCTCPOptions) extends Actor with LazyLogging {
   private val pctScheduler = if(pctOptions.alg.equals("AG")) new PCTCPSchedulerAG(pctOptions) else new PCTCPSchedulerBM(pctOptions)
-  logger.warn("\n PCTCP Actor settings: \n" + pctOptions.toString)
+  logger.warn("\nPCTCP Actor settings: \n" + pctOptions.toString)
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation

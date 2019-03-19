@@ -6,7 +6,8 @@ object DispatcherUtils {
   val dispatcherConfigFile: String = "dispatcher.conf"
 
   private val systemActorPaths = Set("", "user", "system")
-  private val pctActorNames = Set("DispatcherHelperActor", "PCTActor")
+  private val pctActorNames = Set("DispatcherHelperActor", "PCTCPActor", "TaPCTCPActor",
+    "POSActor", "DPOSActor", "RandomWalkActor", "RaposActor")
 
   /**
     * @param  actorRef an ActorRef
