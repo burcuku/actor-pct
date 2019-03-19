@@ -1,8 +1,5 @@
 package protocol
 
-import akka.dispatch.ProgramEvent
-
-
 sealed abstract class Response
 
 case class ErrorResponse(error: String) extends Response

@@ -1,7 +1,7 @@
 package akka.dispatch.state
 
 import akka.actor.{ActorRef, Cell}
-import akka.dispatch.PCTDispatcher.printLog
+import akka.dispatch.TestingDispatcher.printLog
 import akka.dispatch._
 import akka.dispatch.state.DependencyGraphBuilder.Dependency
 import akka.dispatch.state.Messages.{Message, MessageId}
