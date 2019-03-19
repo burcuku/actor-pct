@@ -1,7 +1,7 @@
 package scheduler.pctcp
 
+import protocol.MessageId
 import scheduler.Scheduler
-import scheduler.Scheduler.MessageId
 
 trait PCTCPScheduler extends Scheduler {
   def addNewMessages(predecessors: Map[MessageId, Set[MessageId]]): Unit

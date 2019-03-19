@@ -1,10 +1,10 @@
 package scheduler.random
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.DispatcherInterface
+import akka.dispatch.{DispatcherInterface, ProgramEvent}
 import akka.dispatch.state.Messages.MessageId
 import akka.dispatch.util.FileUtils
-import protocol.{DispatchMessageRequest, ErrorResponse, MessagePredecessors, TerminateRequest}
+import protocol.{AddedEvents, DispatchMessageRequest, ErrorResponse, TerminateRequest}
 
 // Receives user inputs and displays the received responses
 class RandomWalkActor(randomSeed: Long) extends Actor {
@@ -17,7 +17,7 @@ class RandomWalkActor(randomSeed: Long) extends Actor {
 
   override def receive: Receive = {
 
-    case MessagePredecessors(predecessors: Map[MessageId, Set[MessageId]]) =>
+    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       println("Received response: " + predecessors)
       predecessors.keySet.foreach(msg => preds = preds + (msg -> predecessors(msg)))
       messages = messages union predecessors.keySet

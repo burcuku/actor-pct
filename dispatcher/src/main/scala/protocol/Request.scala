@@ -1,7 +1,5 @@
 package protocol
 
-import scheduler.Scheduler.MessageId
-
 trait Request
 
 case class DispatchMessageRequest(messageId: MessageId) extends Request

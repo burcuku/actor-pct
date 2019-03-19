@@ -2,7 +2,8 @@ package scheduler.pctcp.ag
 
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.PCTCPOptions
-import scheduler.Scheduler.{ChainId, MessageId}
+import protocol.MessageId
+import scheduler.Scheduler.ChainId
 import scheduler.pctcp.PCTCPScheduler
 import scheduler.pctcp.ag.AGChainPartitioner.Node
 

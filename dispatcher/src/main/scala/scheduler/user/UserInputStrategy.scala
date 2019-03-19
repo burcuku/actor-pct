@@ -1,7 +1,7 @@
 package scheduler.user
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.dispatch.DispatcherInterface
+import akka.dispatch.{DispatcherInterface, ProgramEvent}
 import akka.dispatch.state.Messages.MessageId
 import akka.dispatch.util.CmdLineUtils
 import protocol._
@@ -52,7 +52,7 @@ class UserInputActor extends Actor {
           self ! GetInput
       }
 
-    case MessagePredecessors(predecessors) =>
+    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       println("Predecessors: ") // MessagePredecessors(predecessors: Map[MessageId, Set[MessageId]])
       predecessors.foreach(x => println(x._1 + " -> " + x._2))
       self ! GetInput // get next user input once the response is received

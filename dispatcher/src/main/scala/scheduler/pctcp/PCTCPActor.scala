@@ -1,12 +1,11 @@
 package scheduler.pctcp
 
 import akka.actor.{Actor, Props}
-import protocol._
-import akka.dispatch.DispatcherInterface
+import protocol.{AddedEvents, DispatchMessageRequest, MessageId, TerminateRequest}
+import akka.dispatch.{DispatcherInterface, ProgramEvent}
 import akka.dispatch.util.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.PCTCPOptions
-import scheduler.Scheduler.MessageId
 import scheduler.pctcp.ag.PCTCPSchedulerAG
 import scheduler.pctcp.bm.PCTCPSchedulerBM
 
@@ -16,7 +15,7 @@ class PCTCPActor(pctOptions: PCTCPOptions) extends Actor with LazyLogging {
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
-    case MessagePredecessors(predecessors: Map[MessageId, Set[MessageId]]) =>
+    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       logger.debug("Added messages: " + predecessors.toList.sortBy(_._1))
 
       pctScheduler.addNewMessages(predecessors)

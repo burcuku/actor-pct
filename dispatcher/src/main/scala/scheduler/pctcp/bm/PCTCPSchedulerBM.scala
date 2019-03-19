@@ -2,7 +2,7 @@ package scheduler.pctcp.bm
 
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.PCTCPOptions
-import scheduler.Scheduler.MessageId
+import protocol.MessageId
 import scheduler.pctcp.PCTCPScheduler
 
 import scala.collection.mutable

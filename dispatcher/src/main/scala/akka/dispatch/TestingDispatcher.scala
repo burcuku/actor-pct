@@ -12,7 +12,7 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.pattern.PromiseActorRef
 import com.typesafe.config.Config
-import protocol.{ErrorResponse, MessagePredecessors}
+import protocol.{ErrorResponse, AddedEvents}
 import scheduler.{NOOptions, SchedulerOptions, SchedulingStrategy}
 import scheduler.dpos.DPOSStrategy
 import scheduler.pctcp.PCTCPStrategy
@@ -265,7 +265,7 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
     Thread.sleep(DispatcherOptions.networkDelay) // expect messages in response to the received message
     val events = state.collectEvents()
     printLog(CmdLineUtils.LOG_INFO, "Events: " + events)
-    strategy.putResponse(MessagePredecessors(state.calculateDependencies(events)))
+    strategy.putResponse(AddedEvents(events, state.calculateDependencies(events)))
   }))
 
   // if a message is asked before its recipient actor is ready, askPatternMessages is nonempty
