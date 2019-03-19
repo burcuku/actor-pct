@@ -4,7 +4,6 @@ import akka.actor.{Actor, Props}
 import akka.dispatch.DispatcherInterface
 import akka.dispatch.state.Messages.MessageId
 import akka.dispatch.util.FileUtils
-import pct.RandomWalkOptions
 import protocol.{DispatchMessageRequest, ErrorResponse, MessagePredecessors, TerminateRequest}
 
 // Receives user inputs and displays the received responses

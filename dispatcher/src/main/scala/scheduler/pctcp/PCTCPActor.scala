@@ -5,12 +5,12 @@ import protocol._
 import akka.dispatch.DispatcherInterface
 import akka.dispatch.util.FileUtils
 import com.typesafe.scalalogging.LazyLogging
-import pct.PCTOptions
+import pctcp.PCTCPOptions
 import scheduler.Scheduler.MessageId
 import scheduler.pctcp.ag.PCTCPSchedulerAG
 import scheduler.pctcp.bm.PCTCPSchedulerBM
 
-class PCTCPActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
+class PCTCPActor(pctOptions: PCTCPOptions) extends Actor with LazyLogging {
   private val pctScheduler = if(pctOptions.alg.equals("AG")) new PCTCPSchedulerAG(pctOptions) else new PCTCPSchedulerBM(pctOptions)
   logger.warn("\n PCTCP Actor settings: \n" + pctOptions.toString)
 
@@ -55,7 +55,7 @@ class PCTCPActor(pctOptions: PCTOptions) extends Actor with LazyLogging {
 }
 
 object PCTCPActor {
-  def props(pctOptions: PCTOptions): Props =
-    Props(new PCTCPActor(pctOptions))
+  def props(pctcpOptions: PCTCPOptions): Props =
+    Props(new PCTCPActor(pctcpOptions))
   case object LogStats
 }

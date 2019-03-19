@@ -3,7 +3,7 @@ name := """actor.scheduler"""
 organization := "org.mpisws.actortest"
 version := "1.0"
 
-scalaVersion := "2.11.0"
+scalaVersion := "2.12.0"
 publishMavenStyle := true
 
 isSnapshot := true

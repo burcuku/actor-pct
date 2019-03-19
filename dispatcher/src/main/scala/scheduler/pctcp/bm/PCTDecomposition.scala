@@ -1,13 +1,13 @@
 package scheduler.pctcp.bm
 
-import pct.PCTOptions
+import pctcp.PCTCPOptions
 import scheduler.Scheduler.{Message, MessageId}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Random
 
-class PCTDecomposition(options: PCTOptions) {
+class PCTDecomposition(options: PCTCPOptions) {
   type ReducingSeq = Tuple3[MessageId, MessageId, Map[MessageId, (MessageId, MessageId)]]
 
   private val messagesDependencies: Messages = new Messages()

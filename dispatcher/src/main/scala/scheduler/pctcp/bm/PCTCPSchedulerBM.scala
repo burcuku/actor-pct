@@ -1,7 +1,7 @@
 package scheduler.pctcp.bm
 
 import com.typesafe.scalalogging.LazyLogging
-import pct.PCTOptions
+import pctcp.PCTCPOptions
 import scheduler.Scheduler.MessageId
 import scheduler.pctcp.PCTCPScheduler
 
@@ -9,7 +9,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 
-class PCTCPSchedulerBM(options: PCTOptions) extends PCTCPScheduler with LazyLogging {
+class PCTCPSchedulerBM(options: PCTCPOptions) extends PCTCPScheduler with LazyLogging {
   private var msgIndex: Int = 0
   private val randInt = new Random //new Random(options.randomSeed)
 

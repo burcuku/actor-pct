@@ -2,7 +2,7 @@ name := """pingpong"""
 
 version := "1.0"
 
-scalaVersion := "2.11.1"
+scalaVersion := "2.12.1"
 
 connectInput in run := true
 fork in run := true

@@ -1,8 +1,7 @@
 package scheduler.random
 
-import akka.actor.{Actor, ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch.{DispatcherInterface, DispatcherOptions}
-import pct.RandomWalkOptions
 import protocol._
 import scheduler.{NOOptions, SchedulerOptions, SchedulingStrategy}
 

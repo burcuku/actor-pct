@@ -1,7 +1,7 @@
 package scheduler.pctcp.ag
 
 import com.typesafe.scalalogging.LazyLogging
-import pct.PCTOptions
+import pctcp.PCTCPOptions
 import scheduler.Scheduler.{ChainId, MessageId}
 import scheduler.pctcp.PCTCPScheduler
 import scheduler.pctcp.ag.AGChainPartitioner.Node
@@ -9,9 +9,9 @@ import scheduler.pctcp.ag.AGChainPartitioner.Node
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-class PCTCPSchedulerAG(pctOptions: PCTOptions) extends PCTCPScheduler with LazyLogging {
-  private val randInt = new Random(pctOptions.randomSeed)
-  private val priorityChangePts: Set[MessageId] = Array.fill(pctOptions.bugDepth-1)(randInt.nextInt(pctOptions.maxMessages).asInstanceOf[MessageId]).toSet
+class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with LazyLogging {
+  private val randInt = new Random(pctcpOptions.randomSeed)
+  private val priorityChangePts: Set[MessageId] = Array.fill(pctcpOptions.bugDepth-1)(randInt.nextInt(pctcpOptions.maxMessages).asInstanceOf[MessageId]).toSet
   private var numCurrentChangePt: Int = 0 // no priority change yet
   logger.info("Priority inversion points at messages: " + priorityChangePts)
 
@@ -20,7 +20,7 @@ class PCTCPSchedulerAG(pctOptions: PCTOptions) extends PCTCPScheduler with LazyL
   // chains are sorted so that the highest in the index has the highest priority:
   private var highPriorityChains: ListBuffer[ChainId] = ListBuffer[ChainId]()
   // lower prioroties keep the chains with priorities 0 to d-2
-  private var reducedPriorityChains: Array[ChainId] = Array.fill(pctOptions.bugDepth-1)(-1)
+  private var reducedPriorityChains: Array[ChainId] = Array.fill(pctcpOptions.bugDepth-1)(-1)
 
   private var last: Map[ChainId, Int] = Map().withDefaultValue(0)
   private var numScheduled: Int = 0
