@@ -5,13 +5,13 @@ import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy
 import protocol.{InitRequest, Response}
 import scheduler.{NOOptions, SchedulerOptions}
 
-class POSStrategy(options: SchedulerOptions) extends SchedulingStrategy {
+class DPOSStrategy(options: SchedulerOptions) extends SchedulingStrategy {
   var posActor: Option[ActorRef] = None
-  val schedulerOptions: POSOptions = if(!options.equals(NOOptions)) options.asInstanceOf[POSOptions]
-  else  POSOptions(DispatcherOptions.randomSeed)
+  val schedulerOptions: DPOSOptions = if(!options.equals(NOOptions)) options.asInstanceOf[DPOSOptions]
+  else DPOSOptions(DispatcherOptions.randomSeed)
 
   def setUp(system: ActorSystem): Unit = {
-    posActor = Some(system.actorOf(POSActor.props(schedulerOptions.asInstanceOf[POSOptions])))
+    posActor = Some(system.actorOf(DPOSActor.props(schedulerOptions.asInstanceOf[DPOSOptions])))
     DispatcherInterface.forwardRequest(InitRequest)
   }
 

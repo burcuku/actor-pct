@@ -1,8 +1,9 @@
 package scheduler.rapos
 
 import akka.actor.ActorSystem
+import akka.dispatch.SchedulingStrategy
 import protocol.Response
-import scheduler.{SchedulerOptions, SchedulingStrategy}
+import scheduler.SchedulerOptions
 
 class RaposStrategy(pctOptions: SchedulerOptions) extends SchedulingStrategy {
 

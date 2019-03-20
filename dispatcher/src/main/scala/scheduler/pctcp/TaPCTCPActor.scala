@@ -17,19 +17,18 @@ class TaPCTCPActor(options: TaPCTCPOptions) extends Actor with LazyLogging {
     case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       logger.debug("Added messages: " + predecessors.toList.sortBy(_._1))
 
-      println("Added messages: " + predecessors.toList.sortBy(_._1))
+      //println("Added messages: " + predecessors.toList.sortBy(_._1))
       scheduler.addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]])
-      println("after")
       val nextMessage = scheduler.scheduleNextMessage
 
       nextMessage match {
         case Some(id) =>
           logger.info("Selected message: " + id)
-          println("Selected message: " + id)
+          //println("Selected message: " + id)
           DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
         case None =>
           logger.info("TaPCTCP Actor terminating the system")
-          println("TaPCTCP Actor terminating the system")
+          //println("TaPCTCP Actor terminating the system")
           logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)
       }

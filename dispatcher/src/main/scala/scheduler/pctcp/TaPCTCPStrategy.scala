@@ -1,10 +1,10 @@
 package scheduler.pctcp
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.dispatch.{DispatcherInterface, DispatcherOptions}
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
 import pctcp.TaPCTCPOptions
 import protocol.{InitRequest, Response}
-import scheduler.{NOOptions, SchedulerOptions, SchedulingStrategy}
+import scheduler.{NOOptions, SchedulerOptions}
 
 class TaPCTCPStrategy(options: SchedulerOptions) extends SchedulingStrategy {
   var taPCTCPActor: Option[ActorRef] = None

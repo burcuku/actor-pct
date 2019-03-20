@@ -16,7 +16,7 @@ package object pctcp {
                             bugDepth: Int = 1,
                             racyMessages: List[String] = List(),
                             alg: String = "AG") extends SchedulerOptions {
-    override def toString: String = ("Random Seed: " + randomSeed + "\n" + "Max # of Messages: " + maxRacyMessages + "\n"
+    override def toString: String = ("Random Seed: " + randomSeed + "\n" + "Max # of Racy Messages: " + maxRacyMessages + "\n"
       + "Bug depth: " + bugDepth + "\n" + "Algorithm: " + alg)
   }
 }

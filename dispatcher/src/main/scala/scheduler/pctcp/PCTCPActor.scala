@@ -24,11 +24,11 @@ class PCTCPActor(pctOptions: PCTCPOptions) extends Actor with LazyLogging {
       nextMessage match {
         case Some(id) =>
           logger.info("Selected message: " + id)
-          println("Selected message: " + id)
+          //println("Selected message: " + id)
           DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
         case None =>
           logger.info("PCTCP Actor terminating the system")
-          println("PCTCP Actor terminating the system")
+          //println("PCTCP Actor terminating the system")
           logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)
       }

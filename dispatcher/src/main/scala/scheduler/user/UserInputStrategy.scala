@@ -1,11 +1,10 @@
 package scheduler.user
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.dispatch.{DispatcherInterface, ProgramEvent}
+import akka.dispatch.{DispatcherInterface, ProgramEvent, SchedulingStrategy}
 import akka.dispatch.state.Messages.MessageId
 import akka.dispatch.util.CmdLineUtils
 import protocol._
-import scheduler.SchedulingStrategy
 import scheduler.user.UserInputActor.GetInput
 
 object UserInputStrategy extends SchedulingStrategy {

@@ -1,9 +1,9 @@
 package scheduler.random
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.dispatch.{DispatcherInterface, DispatcherOptions}
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
 import protocol._
-import scheduler.{NOOptions, SchedulerOptions, SchedulingStrategy}
+import scheduler.{NOOptions, SchedulerOptions}
 
 /**
   * Selects the next message randomly from the set of available messages

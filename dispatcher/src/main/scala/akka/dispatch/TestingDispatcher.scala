@@ -13,10 +13,9 @@ import akka.io.Tcp._
 import akka.pattern.PromiseActorRef
 import com.typesafe.config.Config
 import protocol.{AddedEvents, ErrorResponse}
-import scheduler.{NOOptions, SchedulerOptions, SchedulingStrategy}
-import scheduler.dpos.DPOSStrategy
+import scheduler.{NOOptions, SchedulerOptions}
 import scheduler.pctcp.{PCTCPStrategy, TaPCTCPStrategy}
-import scheduler.pos.POSStrategy
+import scheduler.pos.{DPOSStrategy, POSStrategy}
 import scheduler.random.RandomWalkStrategy
 import scheduler.rapos.RaposStrategy
 import scheduler.user.UserInputStrategy

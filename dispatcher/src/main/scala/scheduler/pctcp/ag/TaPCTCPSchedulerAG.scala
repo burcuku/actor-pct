@@ -130,7 +130,6 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
   private def getRandomChangePoints(numChPoints: Int): List[MessageId] = {
     var counter = 1
     var allPossibleChPoints = new ListBuffer[Int]()
-    println(allPossibleChPoints)
 
     (0 until options.maxRacyMessages).foreach( i => {
       allPossibleChPoints.append(counter)

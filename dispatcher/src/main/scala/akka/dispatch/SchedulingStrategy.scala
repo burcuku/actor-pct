@@ -1,4 +1,4 @@
-package scheduler
+package akka.dispatch
 
 import akka.actor.ActorSystem
 import protocol._

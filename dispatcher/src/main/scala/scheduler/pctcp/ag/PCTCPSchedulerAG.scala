@@ -112,7 +112,6 @@ class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with L
   private def getRandomChangePoints(numChPoints: Int): List[MessageId] = {
     var counter = 1
     var allPossibleChPoints = new ListBuffer[Int]()
-    println(allPossibleChPoints)
 
     (0 until pctcpOptions.maxMessages).foreach( i => {
       allPossibleChPoints.append(counter)

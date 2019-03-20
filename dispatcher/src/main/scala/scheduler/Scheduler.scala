@@ -10,7 +10,3 @@ trait Scheduler {
   def getSchedule: List[MessageId]
   def getNumScheduledMsgs: Int
 }
-
-trait SchedulerOptions
-
-object NOOptions extends SchedulerOptions
