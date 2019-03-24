@@ -1,6 +1,7 @@
 package scheduler.pctcp.ag
 
 import akka.dispatch._
+import akka.dispatch.util.CmdLineUtils
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.{ChainId, TaPCTCPOptions}
 import protocol.MessageId
@@ -13,9 +14,9 @@ import scala.util.Random
 
 class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with LazyLogging {
   private val randInt = new Random(options.randomSeed)
-  private val priorityChangePts: List[MessageId] =  getRandomChangePoints(options.bugDepth-1)
+  private val priorityChangePts: List[Int] =  getRandomChangePoints(options.bugDepth-1)
   private var numCurrentChangePt: Int = 0 // no priority change yet
-  logger.info("Priority inversion points at messages: " + priorityChangePts)
+  CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Priority inversion points at messages: " + priorityChangePts)
 
   private val partitioner = new AGChainPartitioner()
 
@@ -74,7 +75,7 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
     */
   private def isRacy(message: MessageId): Boolean =
     partitioner.getChains.map(c => next(c.id)).filter(e => e.isDefined)
-      .exists(m => ProgramEvent.areRacyEvents(allEvents(m.get.id), allEvents(message)))
+      .exists(m => m.get.id != message && ProgramEvent.areRacyEvents(allEvents(m.get.id), allEvents(message)))
 
   /**
     * @return true if marked as a racy event in the configuration
@@ -87,24 +88,31 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
   private def schedule(chainId: ChainId): MessageId = {
     require(next(chainId).isDefined)
     val nextMsg = next(chainId).get.id
-    logger.debug("Priority change at message: " + nextMsg)
 
-    if(!racyEvents.contains(nextMsg) && (isRacy(nextMsg) || isMarkedRacy(nextMsg))) {
+    //if(!priorityChangedAt.contains(nextMsg) && !racyEvents.contains(nextMsg) && (isRacy(nextMsg) || isMarkedRacy(nextMsg))) {
+    if(!racyEvents.contains(nextMsg) && isMarkedRacy(nextMsg)) {
       racyEvents.append(nextMsg)
       currentNumRacyEvents += 1
     }
 
-    if(priorityChangePts.contains(currentNumRacyEvents) && !priorityChangedAt.contains(nextMsg)) {
-      logger.debug("Changing priority of chain: " + chainId + " to " + priorityChangePts.indexOf(currentNumRacyEvents))
+    if(priorityChangePts.contains(currentNumRacyEvents) && !priorityChangedAt.contains(nextMsg) ) {
+      CmdLineUtils.printLog(CmdLineUtils.LOG_WARNING, "Changing priority of chain: " + chainId + " to " + priorityChangePts.indexOf(currentNumRacyEvents))
+      //println("Next: " + nextMsg + " event: " + allEvents(nextMsg))
+      //println("Changing priority of chain: " + chainId + " to " + priorityChangePts.indexOf(currentNumRacyEvents))
+      //println("Chains: ")
+      //getChains.foreach(c => println(c))
+      //println("Messages: ")
+      //allEvents.keys.filter(allEvents(_).isInstanceOf[MessageSent]).foreach(k => println(k + " ->" + allEvents(k).asInstanceOf[MessageSent].msg.message))
+
       highPriorityChains = highPriorityChains.-(chainId)
 
-      // if its priority was reduces before, clean its prev index
+      // if its priority was reduced before, clean its prev index
       val prevIndex = reducedPriorityChains.indexWhere(_ == chainId)
       if(prevIndex != -1) reducedPriorityChains(prevIndex) = -1
 
       reducedPriorityChains(priorityChangePts.indexOf(currentNumRacyEvents)) = chainId
       priorityChangedAt.append(nextMsg)
-      logger.debug("Chains ordered by priority after: " + highPriorityChains.toList.reverse + reducedPriorityChains.toList.reverse)
+      // CmdLineUtils.printLog(CmdLineUtils.LOG_WARNING, "Chains ordered by priority after: " + highPriorityChains.toList.reverse + reducedPriorityChains.toList.reverse)
 
       // ensured to have at least one enabled chain (we have at least one message)
       assert(getCurrentChain.isDefined)
@@ -127,11 +135,11 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
     }
   }
 
-  private def getRandomChangePoints(numChPoints: Int): List[MessageId] = {
+  private def getRandomChangePoints(numChPoints: Int): List[Int] = {
     var counter = 1
     var allPossibleChPoints = new ListBuffer[Int]()
 
-    (0 until options.maxRacyMessages).foreach( i => {
+    (1 until options.maxRacyMessages).foreach( i => {
       allPossibleChPoints.append(counter)
       counter += 1
     })
@@ -142,13 +150,13 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
       v
     }
 
-    (0 until numChPoints).toList.map(i => getRandomFromList.asInstanceOf[MessageId])
+    (0 until numChPoints).toList.map(i => getRandomFromList)
   }
 
   def getPriorities: List[ChainId] = (highPriorityChains.toList.reverse ++ reducedPriorityChains.toList.reverse).filter(_ != -1)
 
   // for testing purposes:
-  def getPriorityChangePts: List[MessageId] = priorityChangePts
+  def getPriorityChangePts: List[Int] = priorityChangePts
 
   def getChains: List[AGChainPartitioner.Chain] = {
     partitioner.printPartitioning()
@@ -162,7 +170,7 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
 
   def getSchedule: List[MessageId] = schedule.toList
   // the messages at which the priority will be inverted
-  def getPrioInvPoints: List[Int] = priorityChangePts.toList.sorted.map(i => i.asInstanceOf[Int])
+  def getPrioInvPoints: List[Int] = priorityChangePts.sorted
   def getNumScheduledMsgs: Int = numScheduled
   def getNumChains: Int = partitioner.getChains.size
   def getChainsOfMsgs: List[List[MessageId]] = partitioner.getChains.map(c => c.elems.map(node => node.id))

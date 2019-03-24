@@ -3,13 +3,13 @@ package scheduler.pos
 import akka.actor.{Actor, Props}
 import akka.dispatch.{DispatcherInterface, ProgramEvent}
 import akka.dispatch.state.Messages.MessageId
-import akka.dispatch.util.FileUtils
+import akka.dispatch.util.{CmdLineUtils, FileUtils}
 import com.typesafe.scalalogging.LazyLogging
 import protocol.{AddedEvents, DispatchMessageRequest, TerminateRequest}
 
 class DPOSActor(dposOptions: DPOSOptions) extends Actor with LazyLogging {
   private val dposScheduler = new DPOSScheduler(dposOptions)
-  logger.warn("\nDPOS Actor settings: \n" + dposOptions.toString)
+  CmdLineUtils.printLog(CmdLineUtils.LOG_WARNING, "DPOS Actor settings: \n" + dposOptions.toString)
 
   override def receive: Receive = {
 
@@ -21,11 +21,11 @@ class DPOSActor(dposOptions: DPOSOptions) extends Actor with LazyLogging {
 
       nextMessage match {
         case Some(id) =>
-          logger.info("Selected message: " + id)
+          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "Selected message: " + id)
           //println("Selected message: " + id)
           DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
         case None =>
-          logger.info("DPOS Actor terminating the system")
+          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "DPOS Actor terminating the system")
           //println("DPOS Actor terminating the system")
           logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)

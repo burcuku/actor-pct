@@ -1,6 +1,7 @@
 package scheduler.random
 
 import akka.actor.{ActorRef, ActorSystem}
+import akka.dispatch.util.CmdLineUtils
 import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
 import protocol._
 import scheduler.{NOOptions, SchedulerOptions}
@@ -21,7 +22,7 @@ class RandomWalkStrategy(options: SchedulerOptions) extends SchedulingStrategy {
   def putResponse(response: Response): Unit = {
     randomExecActor match {
       case Some(actor) => actor ! response
-      case None => println("The actor for selecting random messages is not created.")
+      case None => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "The actor for selecting random messages is not created.")
     }
   }
 }

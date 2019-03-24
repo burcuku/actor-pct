@@ -1,6 +1,7 @@
 package scheduler.pctcp.ag
 
 import akka.dispatch.ProgramEvent
+import akka.dispatch.util.CmdLineUtils
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.{ChainId, PCTCPOptions}
 import protocol.MessageId
@@ -13,7 +14,7 @@ import scala.util.Random
 class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with LazyLogging {
   private val randInt = new Random(pctcpOptions.randomSeed)
   private val priorityChangePts: List[MessageId] =  getRandomChangePoints(pctcpOptions.bugDepth-1)
-  logger.info("Priority inversion points at messages: " + priorityChangePts)
+  CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Priority inversion points at messages: " + priorityChangePts)
   private val partitioner = new AGChainPartitioner()
 
   // chains are sorted so that the highest in the index has the highest priority:
@@ -64,10 +65,10 @@ class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with L
     require(next(chainId).isDefined)
 
     val nextMsg = next(chainId).get.id
-    logger.debug("Priority change at message: " + nextMsg)
+    CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Priority change at message: " + nextMsg)
 
     if(priorityChangePts.contains(nextMsg) && !priorityChangedAt.contains(nextMsg)) {
-      logger.debug("Changing priority of chain: " + chainId + " to " + priorityChangePts.indexOf(nextMsg))
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Changing priority of chain: " + chainId + " to " + priorityChangePts.indexOf(nextMsg))
       highPriorityChains = highPriorityChains.-(chainId)
 
       // if its priority was reduces before, clean its prev index
@@ -76,7 +77,7 @@ class PCTCPSchedulerAG(pctcpOptions: PCTCPOptions) extends PCTCPScheduler with L
 
       reducedPriorityChains(priorityChangePts.indexOf(nextMsg)) = chainId
       priorityChangedAt.append(nextMsg)
-      logger.debug("Chains ordered by priority after: " + highPriorityChains.toList.reverse + reducedPriorityChains.toList.reverse)
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Chains ordered by priority after: " + highPriorityChains.toList.reverse + reducedPriorityChains.toList.reverse)
 
       // ensured to have at least one enabled chain (we have at least one message)
       assert(getCurrentChain.isDefined)

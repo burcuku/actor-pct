@@ -1,6 +1,7 @@
 package scheduler.pctcp
 
 import akka.actor.{ActorRef, ActorSystem}
+import akka.dispatch.util.CmdLineUtils
 import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
 import pctcp.TaPCTCPOptions
 import protocol.{InitRequest, Response}
@@ -21,7 +22,7 @@ class TaPCTCPStrategy(options: SchedulerOptions) extends SchedulingStrategy {
   def putResponse(response: Response): Unit = {
     taPCTCPActor match {
       case Some(actor) => actor ! response
-      case None => println("The actor for PCT algorithm is not created.")
+      case None => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "The actor for PCT algorithm is not created.")
     }
   }
 }

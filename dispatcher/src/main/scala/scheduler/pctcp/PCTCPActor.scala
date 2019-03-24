@@ -3,7 +3,7 @@ package scheduler.pctcp
 import akka.actor.{Actor, Props}
 import protocol.{AddedEvents, DispatchMessageRequest, MessageId, TerminateRequest}
 import akka.dispatch.{DispatcherInterface, ProgramEvent}
-import akka.dispatch.util.FileUtils
+import akka.dispatch.util.{CmdLineUtils, FileUtils}
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.PCTCPOptions
 import scheduler.pctcp.ag.PCTCPSchedulerAG
@@ -11,23 +11,23 @@ import scheduler.pctcp.bm.PCTCPSchedulerBM
 
 class PCTCPActor(pctOptions: PCTCPOptions) extends Actor with LazyLogging {
   private val pctScheduler = if(pctOptions.alg.equals("AG")) new PCTCPSchedulerAG(pctOptions) else new PCTCPSchedulerBM(pctOptions)
-  logger.warn("\nPCTCP Actor settings: \n" + pctOptions.toString)
+  CmdLineUtils.printLog(CmdLineUtils.LOG_WARNING, "PCTCP Actor settings: \n" + pctOptions.toString)
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
     case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
-      logger.debug("Added messages: " + predecessors.toList.sortBy(_._1))
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Added messages: " + predecessors.toList.sortBy(_._1))
 
       pctScheduler.addNewMessages(events, predecessors)
       val nextMessage = pctScheduler.scheduleNextMessage
 
       nextMessage match {
         case Some(id) =>
-          logger.info("Selected message: " + id)
+          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "Selected message: " + id)
           //println("Selected message: " + id)
           DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
         case None =>
-          logger.info("PCTCP Actor terminating the system")
+          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "PCTCP Actor terminating the system")
           //println("PCTCP Actor terminating the system")
           logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)

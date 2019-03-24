@@ -1,5 +1,6 @@
 package scheduler.pos
 
+import akka.dispatch.util.CmdLineUtils
 import akka.dispatch.{MessageSent, ProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
 import protocol.MessageId
@@ -53,7 +54,7 @@ class DPOSScheduler(options: DPOSOptions) extends Scheduler with LazyLogging {
     * @return true if racy to a concurrently enabled event
     */
   private def isRacy(message: MessageId): Boolean =
-    priorityMap.values.exists(e => ProgramEvent.areRacyEvents(messages(e), messages(message)))
+    priorityMap.values.exists(e => e != message && ProgramEvent.areRacyEvents(messages(e), messages(message)))
 
 
   private def schedule(maxKey: Double, eventId: MessageId): MessageId = {
@@ -63,7 +64,7 @@ class DPOSScheduler(options: DPOSOptions) extends Scheduler with LazyLogging {
     }
 
     if(prioritiesToBeUpdated.keySet.contains(currentNumRacyEvents) && !priorityChangedAt.contains(eventId)) {
-      logger.debug("Changing priority of event: " + eventId + " to " + prioritiesToBeUpdated(currentNumRacyEvents))
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Changing priority of event: " + eventId + " to " + prioritiesToBeUpdated(currentNumRacyEvents))
       priorityMap.remove(maxKey)
       priorityMap.put(rand.nextDouble(), eventId)
       priorityChangedAt.append(eventId)

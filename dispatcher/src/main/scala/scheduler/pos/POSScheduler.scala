@@ -49,13 +49,13 @@ class POSScheduler(options: POSOptions) extends Scheduler with LazyLogging {
     * @return true if racy to a concurrently enabled event
     */
   private def isRacy(message: MessageId): Boolean =
-    priorityMap.values.exists(e => ProgramEvent.areRacyEvents(messages(e), messages(message)))
+    priorityMap.values.exists(e => e != message && ProgramEvent.areRacyEvents(messages(e), messages(message)))
 
 
   private def schedule(eventId: MessageId): MessageId = {
 
     val toUpdate: mutable.ListBuffer[Double] = new mutable.ListBuffer[Double]() // sort to determinize the order
-      priorityMap.keySet.toList.sorted.foreach(e => if(ProgramEvent.areRacyEvents(messages(priorityMap(e)), messages(eventId))) toUpdate.append(e))
+      priorityMap.keySet.toList.sorted.foreach(e => if(e != eventId && ProgramEvent.areRacyEvents(messages(priorityMap(e)), messages(eventId))) toUpdate.append(e))
 
     toUpdate.foreach(e => {
       val msgId = priorityMap.remove(e).get

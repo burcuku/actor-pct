@@ -23,7 +23,7 @@ case object DummyProgramEvent extends ProgramEvent
 
 
 object ProgramEvent {
-  def areRacyEvents(e1: ProgramEvent, e2: ProgramEvent): Boolean = getActor(e1) == getActor(e2)
+  def areRacyEvents(e1: ProgramEvent, e2: ProgramEvent): Boolean = !e1.equals(e2) && getActor(e1) == getActor(e2)
 
   def getActor(e: ProgramEvent): Cell = e match {
     case e: ActorCreated =>  e.asInstanceOf[ActorCreated].actor

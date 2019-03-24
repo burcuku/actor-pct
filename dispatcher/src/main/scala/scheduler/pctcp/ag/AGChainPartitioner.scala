@@ -1,6 +1,6 @@
 package scheduler.pctcp.ag
 
-import akka.dispatch.util.IdGenerator
+import akka.dispatch.util.{CmdLineUtils, IdGenerator}
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.ChainId
 import protocol.MessageId
@@ -50,9 +50,10 @@ class AGChainPartitioner extends LazyLogging {
       }
     }
     val bsets = insertIntoBSet(0)
-    logger.debug("Inserted: " + elem.id + " preds: " + elem.preds)
-    bsets.foreach(x => logger.debug(x.toString))
+    CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Inserted: " + elem.id + " preds: " + elem.preds)
+    //bsets.foreach(x => logger.debug(x.toString))
 
+    /*
     try {
       assert(bsets.indices.forall(i => bsets(i).size <= i + 1))
       assert(!bsets.indices.exists(i => hasComparableElems(getMaximals(bsets(i)))))
@@ -61,7 +62,7 @@ class AGChainPartitioner extends LazyLogging {
         logger.error("BSet invariant is broken!\n" + e)
         println(Console.RED + "BSet invariant is broken!\n" + e + Console.RESET)
         System.exit(-1)
-    }
+    }*/
 
     bsets
   }
@@ -83,11 +84,11 @@ class AGChainPartitioner extends LazyLogging {
   private def hasComparableElems(elems: Set[Node]): Boolean = elems.zip(elems).filter(p => p._1 != p._2).exists(p => isComparable(p._1, p._2))
 
   def printPartitioning(bsets: Partitioning): Unit = {
-    bsets.zip(1 to bsets.size).foreach(x => println("B " + x._1 + " : " + x._2))
+    bsets.zip(1 to bsets.size).foreach(x => CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "B " + x._1 + " : " + x._2))
   }
 
   def printPartitioning(): Unit = {
-    partitioning.zip(1 to partitioning.size).foreach(x => println("B " + x._1 + " : " + x._2))
+    partitioning.zip(1 to partitioning.size).foreach(x => CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "B " + x._1 + " : " + x._2))
   }
 }
 

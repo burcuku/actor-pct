@@ -1,7 +1,7 @@
 package scheduler.pctcp
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.util.FileUtils
+import akka.dispatch.util.{CmdLineUtils, FileUtils}
 import akka.dispatch.{DispatcherInterface, ProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.TaPCTCPOptions
@@ -10,12 +10,12 @@ import scheduler.pctcp.ag.TaPCTCPSchedulerAG
 
 class TaPCTCPActor(options: TaPCTCPOptions) extends Actor with LazyLogging {
   private val scheduler = new TaPCTCPSchedulerAG(options)
-  logger.warn("\nTaPCTCP Actor settings: \n" + options.toString)
+  CmdLineUtils.printLog(CmdLineUtils.LOG_WARNING, "TaPCTCP Actor settings: \n" + options.toString)
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
     case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
-      logger.debug("Added messages: " + predecessors.toList.sortBy(_._1))
+      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Added messages: " + predecessors.toList.sortBy(_._1))
 
       //println("Added messages: " + predecessors.toList.sortBy(_._1))
       scheduler.addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]])
@@ -23,11 +23,11 @@ class TaPCTCPActor(options: TaPCTCPOptions) extends Actor with LazyLogging {
 
       nextMessage match {
         case Some(id) =>
-          logger.info("Selected message: " + id)
+          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "Selected message: " + id)
           //println("Selected message: " + id)
           DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
         case None =>
-          logger.info("TaPCTCP Actor terminating the system")
+          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "TaPCTCP Actor terminating the system")
           //println("TaPCTCP Actor terminating the system")
           logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)
