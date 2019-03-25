@@ -2,7 +2,7 @@ package scheduler.pctcp
 
 import akka.actor.{Actor, Props}
 import akka.dispatch.util.{CmdLineUtils, FileUtils}
-import akka.dispatch.{DispatcherInterface, ProgramEvent}
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
 import pctcp.TaPCTCPOptions
 import protocol.{AddedEvents, DispatchMessageRequest, MessageId, TerminateRequest}
@@ -29,7 +29,7 @@ class TaPCTCPActor(options: TaPCTCPOptions) extends Actor with LazyLogging {
         case None =>
           CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "TaPCTCP Actor terminating the system")
           //println("TaPCTCP Actor terminating the system")
-          logStats()
+          if(DispatcherOptions.logStats) logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)
       }
   }

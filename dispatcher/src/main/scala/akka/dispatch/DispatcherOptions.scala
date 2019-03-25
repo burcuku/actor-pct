@@ -20,6 +20,8 @@ object DispatcherOptions {
   private val maxNumTimeStepsPath = "testing-dispatcher.maxNumTimeSteps"
   private val networkDelayPath = "testing-dispatcher.networkDelay"
   private val noInterceptMsgsPath = "testing-dispatcher.noInterceptMsgs"
+  private val logEventsToFilePath = "testing-dispatcher.logEventsToFile"
+  private val logStatsPath = "testing-dispatcher.logStats"
   val defaultUiChoice = "CmdLine"
 
   val config: Config = ConfigFactory.load(configFile)
@@ -34,7 +36,12 @@ object DispatcherOptions {
 
   val networkDelay: Int = if(config.hasPath(networkDelayPath)) config.getInt(networkDelayPath) else 0
 
-  val noInterceptMsgs = if(config.hasPath(noInterceptMsgsPath)) config.getStringList(noInterceptMsgsPath).asScala.toList else List()
+  val noInterceptMsgs: List[String] = if(config.hasPath(noInterceptMsgsPath)) config.getStringList(noInterceptMsgsPath).asScala.toList else List()
+
+  val logEventsToFile: Boolean = if(config.hasPath(logEventsToFilePath)) config.getBoolean(logEventsToFilePath) else false
+
+  val logStats: Boolean = if(config.hasPath(logStatsPath)) config.getBoolean(logStatsPath) else false
+
 
   lazy val timeStep: FiniteDuration =
     if(config.hasPath(timeStepPath)) FiniteDuration(config.getDuration(timeStepPath, TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS)

@@ -1,7 +1,7 @@
 package scheduler.pos
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.{DispatcherInterface, ProgramEvent}
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
 import akka.dispatch.state.Messages.MessageId
 import akka.dispatch.util.{CmdLineUtils, FileUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -26,7 +26,7 @@ class POSActor(posOptions: POSOptions) extends Actor with LazyLogging {
         case None =>
           CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "POS Actor terminating the system")
           //println("POS Actor terminating the system")
-          logStats()
+          if(DispatcherOptions.logStats) logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)
       }
   }

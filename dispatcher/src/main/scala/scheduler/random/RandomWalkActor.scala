@@ -1,7 +1,7 @@
 package scheduler.random
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.{DispatcherInterface, ProgramEvent}
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
 import akka.dispatch.state.Messages.MessageId
 import akka.dispatch.util.{CmdLineUtils, FileUtils}
 import protocol.{AddedEvents, DispatchMessageRequest, ErrorResponse, TerminateRequest}
@@ -28,8 +28,8 @@ class RandomWalkActor(randomSeed: Long) extends Actor {
           processed = id :: processed
           DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
         case None =>
-          logStats()
-          CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Quiting. ")
+          if(DispatcherOptions.logStats) logStats()
+          //CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Quiting. ")
           DispatcherInterface.forwardRequest(TerminateRequest)
       }
 

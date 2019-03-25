@@ -200,12 +200,12 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   private def handleTerminate: Any = actorSystem match {
     case Some(system) if DispatcherOptions.willTerminate =>
-      logInfo()
+      if (DispatcherOptions.logEventsToFile) logInfo()
       system.terminate
     case Some(system)  =>
       terminated = true // terminate is set but the system is not terminated
       printLog(CmdLineUtils.LOG_WARNING,  "System terminate request received. Not configured to force termination.")
-      logInfo()
+      if (DispatcherOptions.logEventsToFile) logInfo()
     case None => printLog(CmdLineUtils.LOG_WARNING,  "Cannot terminate")
   }
 
