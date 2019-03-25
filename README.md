@@ -1,6 +1,7 @@
 Randomized testing of Akka actor programs
 =========================
 
+This project implementes **RandomWalk**, **POS**, **d-POS**, **PCTCP** and **taPCTCP** schedulers for Akka actor programs.
 
 ### Building and running an example app:
 
@@ -29,7 +30,7 @@ cd apps/pingpong
 sbt run
 ```
 
-The test parameters can be configured using ```dispatcher.conf``` file. 
+The test parameters can be configured using [```dispatcher.conf```](https://gitlab.mpi-sws.org/burcu/actor-pct/blob/master/apps/pingpong/src/main/resources/dispatcher.conf) file. 
 
 To add the dispatcher to your maven project dependencies, add the following to your pom.xml.
 
