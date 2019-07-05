@@ -6,12 +6,12 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
 import spray.json._
+import explorer.protocol.{CommandRequest, CommandResponse, Terminate}
 
 /**
-  * The dispatcher process connects to this server:
-  * The dispatcher process is forwarded the received user requests
-  * The responses received from the dispatcher are passed to the TcpServerForExplorer
-  * (The response (i.e., configuration) from the dispatcher are accepted in QueryResponse json format)
+  * The dispatcher process connects to this server to:
+  *   - receive CommandRequest and
+  *   - send CommandResponse
   */
 class ExplorerServer(serverConfig: ServerConfig) extends Actor {
 
@@ -20,12 +20,103 @@ class ExplorerServer(serverConfig: ServerConfig) extends Actor {
 
   IO(Tcp) ! Bind(self, new InetSocketAddress("0.0.0.0", serverConfig.explorerPort))
 
-  def receive: Receive = {
-    case _ => println("Not implemented handler")
-  }
+  //todo initiate explorer with a parameter of this
+  private val explorer: ActorRef = context.actorOf(ExplorerActor.props(self), "explorerActor")
 
+  /**
+    * Receives QueryResponse (by the connected dispatcher process) and sends it to the explorer
+    */
+  val responseHandler: ActorRef = context.actorOf(CommandResponseHandlerActor.props(explorer), "responseHandler")
+
+  /**
+    * Receives QueryRequest (from the explorer) and sends this user request to the connected dispatcher process
+    */
+  val requestHandler: ActorRef = context.actorOf(CommandRequestHandlerActor.props, "requestHandler")
+
+  def receive: Receive = {
+    case b @ Bound(localAddress) =>
+      println(Console.BLUE + "Tcp server for debugger process bound" + Console.RESET)
+
+    case CommandFailed(_: Bind) => context stop self
+
+    // when a client (dispatcher process) connects, save this connection
+    case c @ Connected(remote, local) =>
+      val connection = sender()
+      connection ! Register(responseHandler)
+      requestHandler ! AddClient(connection)
+
+    // receives from the Explorer
+    case request: CommandRequest =>
+      println(Console.BLUE + "Server received request: " + request + Console.RESET)
+      requestHandler ! request
+
+    // receives from the Dispatcher
+    case response: CommandResponse =>
+      println(Console.BLUE + "Server received response: " + response + Console.RESET)
+      responseHandler ! response
+  }
 }
 
 object ExplorerServer {
   def props(serverConfig: ServerConfig): Props = Props(new ExplorerServer(serverConfig))
 }
+
+/**
+  * Forwards the explorer's request to the dispatcher
+  */
+class CommandRequestHandlerActor extends Actor {
+  // The debugger process (to whom the user request will be sent)
+  private var dispatcher: ActorRef = Actor.noSender
+
+  def receive: Receive = {
+    case AddClient(c) =>
+      println(Console.BLUE + "Dispatcher process client set to: " + c + Console.RESET)
+      dispatcher = c
+
+    case queryRequest: CommandRequest =>
+      // todo send request to dispatcher (via network)
+      /*if(!dispatcher.equals(Actor.noSender)) {
+        println(Console.BLUE + "Request to be sent to the debugger: " + CommandRequestJsonFormat.write(queryRequest).prettyPrint + Console.RESET)
+        dispatcher ! Write(ByteString(CommandRequestJsonFormat.write(queryRequest).prettyPrint))
+      } else {
+        println(Console.RED_B + "Received request before the debugger process connection!")
+        println("Request cannot be sent!" + Console.RESET)
+      }*/
+
+    case _ =>
+  }
+}
+
+object CommandRequestHandlerActor {
+  def props = Props(new CommandRequestHandlerActor())
+}
+
+/**
+  * Receives program output from the dispatcher process
+  * Forwards this response to the explorer
+  */
+class CommandResponseHandlerActor(explorer: ActorRef) extends Actor {
+  import Tcp._
+
+  def receive: Receive = {
+    case Received(data) =>
+      // todo decode the network data and send to explorer
+      /*try {
+        // The received data must be a QueryResponse
+        val response = QueryResponseJsonFormat.read(data.utf8String.parseJson)
+        println(Console.BLUE + "Response to be sent to user: " + response + Console.RESET)
+        uiServer.foreach(_ ! response)
+      } catch {
+        case e: Exception => println(Console.BLUE + "Server could not parse the response: " + data.utf8String + Console.RESET)
+      }*/
+
+    case PeerClosed => println("Debugger server - Peer closed")
+    case _ =>
+  }
+}
+
+object CommandResponseHandlerActor {
+  def props(explorer: ActorRef) = Props(new CommandResponseHandlerActor(explorer))
+}
+
+case class AddClient(client: ActorRef)

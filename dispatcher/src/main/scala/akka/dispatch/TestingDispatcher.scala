@@ -522,3 +522,7 @@ class TestingDispatcherConfigurator(config: Config, prerequisites: DispatcherPre
   override def dispatcher(): MessageDispatcher = instance
 }
 
+
+// Send request of type CommandRequest to the dispatcher by:
+// dispatcherServer ! request
+

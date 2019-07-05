@@ -1,7 +1,7 @@
-Randomized testing of Akka actor programs
+Systematic testing of Akka actor programs
 =========================
 
-This project implementes **RandomWalk**, **POS**, **d-POS**, **PCTCP** and **taPCTCP** schedulers for Akka actor programs.
+This project implementes a systematic exploration of actor programs.
 
 ### Building and running an example app:
 
@@ -29,6 +29,4 @@ Run the server:
 sbt explorer/run
 ```
 
-Note: Current version does not implement the message handlers for the servers.
- 
   

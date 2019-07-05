@@ -1,20 +1,21 @@
 package explorer.protocol
 
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import spray.json._
-
 abstract class ProtocolMessage
+
+abstract class CommandRequest extends ProtocolMessage
+
+abstract class CommandResponse extends ProtocolMessage
 
 /** Message types used in the communication between the explorer and the dispatcher **/
 
-case object Initiate extends ProtocolMessage  //may not be necessary
+case object Initiate extends CommandRequest  //may not be necessary
 
-case object DispatchO extends ProtocolMessage
+case object DispatchO extends CommandRequest
 
-case object DispatchU extends ProtocolMessage
+case object DispatchU extends CommandRequest
 
-case class ReducePriority(event: Long, index: Int) extends ProtocolMessage
+case class ReducePriority(event: Long, index: Int) extends CommandRequest
 
-case object Terminate extends ProtocolMessage
+case object Terminate extends CommandRequest
 
-case class Configuration(str: String) extends ProtocolMessage //todo fill in arguments in the Configuration case class
+case class Configuration(str: String) extends CommandResponse //todo fill in arguments in the Configuration case class

@@ -2,7 +2,7 @@ ThisBuild / organization := "org.mpisws.actortest"
 ThisBuild / version := "1.0"
 ThisBuild / scalaVersion := "2.12.0"
 ThisBuild / publishMavenStyle := true
-
+ThisBuild / isSnapshot := true
 lazy val root = (project in file("."))
   .settings(
     name := "actor-testing"
@@ -25,7 +25,7 @@ lazy val dispatcher = (project in file("./dispatcher"))
       "ch.qos.logback" % "logback-classic" % "1.1.7",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
     )
-  )
+  ).dependsOn(explorerProtocol)
 
 lazy val explorer = (project in file("./explorer"))
   .settings(
@@ -36,7 +36,7 @@ lazy val explorer = (project in file("./explorer"))
       "com.typesafe.akka" %% "akka-actor" % "2.4.14",
       "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.0"
     )
-  )
+  ).dependsOn(explorerProtocol)
 
 lazy val explorerProtocol = project.in(file("./explorer-protocol"))
   .settings(
@@ -53,7 +53,8 @@ lazy val settings = Seq(
   scalacOptions ++= compilerOptions,
   resolvers ++= Seq(
     "sonatype-snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-  )
+  ),
+  publishArtifact in(Compile, packageDoc) := false
 )
 
 lazy val compilerOptions = Seq(
