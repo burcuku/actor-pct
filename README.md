@@ -16,30 +16,19 @@ Requirements:
 Build the project and publish its libraries locally:
 
 ```
-cd dispatcher
+cd actor-testing
 sbt compile
 sbt publishLocal
 sbt publishM2  // to use in the Maven projects
 ```
 
 
-Run the example application:
+Run the server:
 
 ```
-cd apps/pingpong
-sbt run
+sbt explorer/run
 ```
 
-The test parameters can be configured using [```dispatcher.conf```](https://gitlab.mpi-sws.org/burcu/actor-pct/blob/master/apps/pingpong/src/main/resources/dispatcher.conf) file. 
-
-To add the dispatcher to your maven project dependencies, add the following to your pom.xml.
-
- ```
- <dependency>
-   <groupId>org.mpisws.actortest</groupId>
-   <artifactId>actor-scheduler_2.12</artifactId>
-   <version>1.0</version>
- </dependency>
-  ```
+Note: Current version does not implement the message handlers for the servers.
  
   
