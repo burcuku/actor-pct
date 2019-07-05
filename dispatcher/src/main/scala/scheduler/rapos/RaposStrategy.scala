@@ -1,13 +1,26 @@
 package scheduler.rapos
 
-import akka.actor.ActorSystem
-import akka.dispatch.SchedulingStrategy
-import protocol.Response
-import scheduler.SchedulerOptions
+import akka.actor.{ActorRef, ActorSystem}
+import akka.dispatch.util.CmdLineUtils
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
+import protocol.{InitRequest, Response}
+import scheduler.{NOOptions, SchedulerOptions}
 
-class RaposStrategy(pctOptions: SchedulerOptions) extends SchedulingStrategy {
+class RaposStrategy(raposOptions: SchedulerOptions) extends SchedulingStrategy {
 
-  override def setUp(system: ActorSystem): Unit = ???
+  var posActor: Option[ActorRef] = None
+  val schedulerOptions: RaposOptions = if(!raposOptions.equals(NOOptions)) raposOptions.asInstanceOf[RaposOptions]
+  else  RaposOptions(DispatcherOptions.randomSeed)
 
-  def putResponse(response: Response): Unit = ???
+  def setUp(system: ActorSystem): Unit = {
+    posActor = Some(system.actorOf(RaposActor.props(schedulerOptions.asInstanceOf[RaposOptions])))
+    DispatcherInterface.forwardRequest(InitRequest)
+  }
+
+  def putResponse(response: Response): Unit = {
+    posActor match {
+      case Some(actor) => actor ! response
+      case None => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "The actor for selecting random messages is not created.")
+    }
+  }
 }
