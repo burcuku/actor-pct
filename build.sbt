@@ -25,7 +25,7 @@ lazy val dispatcher = (project in file("./dispatcher"))
       "ch.qos.logback" % "logback-classic" % "1.1.7",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
     )
-  ).dependsOn(explorerProtocol)
+  )
 
 lazy val explorer = (project in file("./explorer"))
   .settings(
@@ -38,15 +38,20 @@ lazy val explorer = (project in file("./explorer"))
     )
   ).dependsOn(explorerProtocol)
 
+
+
 lazy val explorerProtocol = project.in(file("./explorer-protocol"))
   .settings(
     name := "explorer-protocol",
     settings,
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor" % "2.4.14",
-      "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.0"
-    )
-  )
+      "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.0",
+      "com.typesafe.akka" %% "akka-testkit" % "2.4.14" % "test"
+
+)
+  ).dependsOn(dispatcher)
+
 
 
 lazy val settings = Seq(
