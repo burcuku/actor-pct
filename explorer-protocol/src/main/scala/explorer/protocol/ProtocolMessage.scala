@@ -21,6 +21,7 @@ object Responses extends SprayJsonSupport with DefaultJsonProtocol {
 
     def write(c: Response): JsObject = c match {
       case CommandResponse(events: List[Event], predecessors: Map[MessageId, Set[MessageId]]) => JsObject(
+        "responseType" -> JsString(ADDED_EVENTS_RESPONSE),
         "events" -> JsArray(events.map(e => Events.EventJsonFormat.write(e)))
         //,"predecessors" -> predecessors.toJson //todo
       )
