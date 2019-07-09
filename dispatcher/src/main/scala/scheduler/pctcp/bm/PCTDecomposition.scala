@@ -1,7 +1,6 @@
 package scheduler.pctcp.bm
 
-import pctcp.PCTCPOptions
-import protocol.{Message, MessageId}
+import explorer.protocol.MessageId
 
 import scala.annotation.tailrec
 import scala.collection.mutable

@@ -1,7 +1,7 @@
 package akka.dispatch.state
 
-import akka.dispatch.ProgramEvent
-import akka.dispatch.state.Messages.MessageId
+import akka.dispatch.InternalProgramEvent
+import explorer.protocol.MessageId
 
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
@@ -19,22 +19,22 @@ class EventBuffer {
   /**
     * The list of events occurred in the actor program
     */
-  private val events: ListBuffer[(MessageId, ProgramEvent)] = ListBuffer()
+  private val events: ListBuffer[(MessageId, InternalProgramEvent)] = ListBuffer()
 
   def isEmpty: Boolean = events.isEmpty
 
-  def addEvent(id: MessageId, e: ProgramEvent): Unit = events += ((id, e))
+  def addEvent(id: MessageId, e: InternalProgramEvent): Unit = events += ((id, e))
 
-  def addEvent(e: ProgramEvent): Unit = events += ((NO_MSG, e))
+  def addEvent(e: InternalProgramEvent): Unit = events += ((NO_MSG, e))
 
   def clear(): Unit = events.clear()
 
-  def getAllEvents: List[ProgramEvent] = events.map(_._2).toList
+  def getAllEvents: List[InternalProgramEvent] = events.map(_._2).toList
 
   /**
     * Returns the list of events of a particular event type
     */
-  def getEvents[T <: ProgramEvent : ClassTag]: List[(MessageId, ProgramEvent)] = {
+  def getEvents[T <: InternalProgramEvent : ClassTag]: List[(MessageId, InternalProgramEvent)] = {
     val clazz = implicitly[ClassTag[T]].runtimeClass
     events.toList.filter(e => clazz.isInstance(e._2))
   }
@@ -47,7 +47,7 @@ class EventBuffer {
   /**
     * Returns the list of events added after last query
     */
-  def consumeEvents: List[(MessageId, ProgramEvent)] = {
+  def consumeEvents: List[(MessageId, InternalProgramEvent)] = {
     val list = events.toList.drop(recent)
     //events.clear()
     recent = events.size

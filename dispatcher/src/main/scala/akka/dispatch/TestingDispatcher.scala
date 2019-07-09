@@ -4,7 +4,6 @@ import java.util.concurrent._
 
 import akka.actor.{Actor, ActorCell, ActorInitializationException, ActorRef, ActorSystem, Cell, InternalActorRef, Props}
 import akka.dispatch.state.ExecutionState
-import akka.dispatch.state.Messages.{Message, MessageId}
 import akka.dispatch.time.TimerActor.AdvanceTime
 import akka.dispatch.sysmsg.{NoMessage, _}
 import akka.event.Logging._
@@ -12,7 +11,8 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.pattern.PromiseActorRef
 import com.typesafe.config.Config
-import protocol.{AddedEvents, ErrorResponse}
+import explorer.protocol.{MessageId, Response}
+import scheduler.network.NetworkStrategy
 import scheduler.{NOOptions, SchedulerOptions}
 import scheduler.pctcp.{PCTCPStrategy, TaPCTCPStrategy}
 import scheduler.pos.{DPOSStrategy, POSStrategy}
@@ -22,6 +22,7 @@ import scheduler.user.UserInputStrategy
 import time.TimerActor
 import util.{CmdLineUtils, DispatcherUtils, FileUtils, ReflectionUtils}
 import util.FunUtils._
+import explorer.protocol
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -55,6 +56,11 @@ private case class DispatchMessageToActor(id: MessageId) extends DispatcherMsg
 private case class DropMessageFromActor(id: MessageId) extends DispatcherMsg
 
 object TestingDispatcher {
+
+  // to use internally //todo revise and add adapters
+  case class Message(id: MessageId, receiver: ActorRef, envelope: Envelope)
+  case class AddedEvents(events: Seq[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) extends Response //todo merge + adapter from the dispatcher
+
 
   /**
     * Called when the user requests to dispatch the given message to its recipient
@@ -148,6 +154,9 @@ object TestingDispatcher {
         case "RANDOM" =>
           printLog(CmdLineUtils.LOG_INFO, "Input choice: Random walk")
           strategy = new RandomWalkStrategy(schedulerOptions)
+        case "NETWORK" =>
+          printLog(CmdLineUtils.LOG_INFO, "Input choice: Network")
+          strategy = new NetworkStrategy(schedulerOptions)
         case _ =>
           printLog(CmdLineUtils.LOG_INFO, "Default input choice: Command line")
           strategy = UserInputStrategy
@@ -215,7 +224,7 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   private def handleDispatchMessageToActor(message: Message): Unit = state.existsActor(message.receiver) match {
     case Some(actor) if !state.isProcessed(message.id) =>
-      state.updateState(MessageReceived(actor, message.id, message.envelope))
+      //state.updateState(MessageReceived(actor, message.id, message.envelope))
       // handle the actor message synchronously
       val receiver = actor.asInstanceOf[ActorCell]
       val mbox = receiver.mailbox
@@ -233,7 +242,8 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
     */
   private def handleDropMessageFromActor(message: Message): Unit = state.existsActor(message.receiver) match {
     case Some(actor) if !state.isProcessed(message.id) =>
-      state.updateState(MessageDropped(actor, message.id, message.envelope))
+      //state.updateState(MessageDropped(actor, message.id, message.envelope))
+      printLog(CmdLineUtils.LOG_DEBUG, "The selected message is dropped")
     case Some(actor) =>
       printLog(CmdLineUtils.LOG_ERROR, "The selected message is already processed: " + id)
     case None =>
@@ -261,9 +271,9 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
 
   private def sendProgramEvents() = runOnExecutor(toRunnable(() => {
     Thread.sleep(DispatcherOptions.networkDelay) // expect messages in response to the received message
-    val events = state.collectEvents()
+    val events: Seq[(protocol.MessageId, InternalProgramEvent)] = state.collectEvents()
     printLog(CmdLineUtils.LOG_INFO, "Events: " + events)
-    strategy.putResponse(AddedEvents(events, state.calculateDependencies(events)))
+    strategy.putResponse(TestingDispatcher.AddedEvents(events, state.calculateDependencies(events.toList)))
   }))
 
   // if a message is asked before its recipient actor is ready, askPatternMessages is nonempty
@@ -322,7 +332,7 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
               sendProgramEvents()
             } else {
               printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
-              strategy.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
+              //strategy.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
             }
           }))
           return
@@ -334,7 +344,7 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
               sendProgramEvents()
             } else {
               printLog(CmdLineUtils.LOG_ERROR, "Message with id: " + messageId + " cannot be found.")
-              strategy.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
+              //strategy.putResponse(ErrorResponse("Message with id: " + messageId + " cannot be found."))
             }
           }))
           return
@@ -474,8 +484,8 @@ final class TestingDispatcher(_configurator: MessageDispatcherConfigurator,
     printLog(CmdLineUtils.LOG_DEBUG, "Created mailbox for: " + actor.self + " in thread: " + Thread.currentThread().getName)
 
     // add to the event list only if it is not a system actor
-    if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ )
-      state.updateState(ActorCreated(actor))
+    //if (!DispatcherUtils.isSystemActor(actor.self) /*&& !actor.self.toString().startsWith("Actor[akka://" + systemName + "/user/" + dispatcherInitActorName)*/ )
+      //state.updateState(ActorCreated(actor))
 
     new Mailbox(mailboxType.create(Some(actor.self), Some(actor.system))) with DefaultSystemMessageQueue
   }

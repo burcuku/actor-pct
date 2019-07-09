@@ -1,6 +1,6 @@
 package scheduler.pctcp.bm
 
-import akka.dispatch.DummyProgramEvent
+import akka.dispatch.DummyInternalProgramEvent$
 import org.scalatest.{Matchers, WordSpec}
 import pctcp.PCTCPOptions
 
@@ -24,8 +24,8 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
       val pctStrategy = new PCTCPSchedulerBM(pctOptions)
       
       //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
-      pctStrategy.addNewMessages(List((0, DummyProgramEvent), (1, DummyProgramEvent), (2, DummyProgramEvent), (3, DummyProgramEvent), (4, DummyProgramEvent),
-        (5, DummyProgramEvent), (6, DummyProgramEvent), (7, DummyProgramEvent), (8, DummyProgramEvent), (9, DummyProgramEvent)),
+      pctStrategy.addNewMessages(List((0, DummyInternalProgramEvent$), (1, DummyInternalProgramEvent$), (2, DummyInternalProgramEvent$), (3, DummyInternalProgramEvent$), (4, DummyInternalProgramEvent$),
+        (5, DummyInternalProgramEvent$), (6, DummyInternalProgramEvent$), (7, DummyInternalProgramEvent$), (8, DummyInternalProgramEvent$), (9, DummyInternalProgramEvent$)),
         Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       pctStrategy.printPrioInvPoints
       
@@ -42,8 +42,8 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
               
       //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
       //pctStrategy.setNewMessages(Map(20L->Set(), 21L->Set(20L), 22L->Set(21L), 23L->Set(), 24L->Set(23L), 25L->Set(22L, 24L), 26L->Set(25L), 27L->Set(24L), 28L->Set(27L), 29L->Set(28L)))
-      pctStrategy.addNewMessages(List((0, DummyProgramEvent), (1, DummyProgramEvent), (2, DummyProgramEvent), (3, DummyProgramEvent), (4, DummyProgramEvent),
-        (5, DummyProgramEvent), (6, DummyProgramEvent), (7, DummyProgramEvent), (8, DummyProgramEvent), (9, DummyProgramEvent)),
+      pctStrategy.addNewMessages(List((0, DummyInternalProgramEvent$), (1, DummyInternalProgramEvent$), (2, DummyInternalProgramEvent$), (3, DummyInternalProgramEvent$), (4, DummyInternalProgramEvent$),
+        (5, DummyInternalProgramEvent$), (6, DummyInternalProgramEvent$), (7, DummyInternalProgramEvent$), (8, DummyInternalProgramEvent$), (9, DummyInternalProgramEvent$)),
         Map(0L->Set(), 1L->Set(0L), 2L->Set(1L), 3L->Set(), 4L->Set(3L), 5L->Set(2L, 4L), 6L->Set(5L), 7L->Set(4L), 8L->Set(7L), 9L->Set(8L)))
       pctStrategy.printPrioInvPoints
       
@@ -60,7 +60,7 @@ class PCTSchedulerBMTest extends WordSpec with Matchers {
               
       //pctStrategy.setNewMessages(List(message0.id, message1.id, message2.id, message3.id, message4.id, message5.id, message6.id, message7.id, message8.id, message9.id))
       //pctStrategy.setNewMessages(Map(20L->Set(), 21L->Set(20L), 22L->Set(21L), 23L->Set(), 24L->Set(23L), 25L->Set(22L, 24L), 26L->Set(25L), 27L->Set(24L), 28L->Set(27L), 29L->Set(28L)))
-      pctStrategy.addNewMessages(List((0, DummyProgramEvent), (1, DummyProgramEvent), (2, DummyProgramEvent), (3, DummyProgramEvent)),
+      pctStrategy.addNewMessages(List((0, DummyInternalProgramEvent$), (1, DummyInternalProgramEvent$), (2, DummyInternalProgramEvent$), (3, DummyInternalProgramEvent$)),
         Map(0L->Set(), 1L->Set(), 2L->Set(0L, 1L), 3L->Set(0L)))
       pctStrategy.printPrioInvPoints
       

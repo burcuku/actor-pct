@@ -1,8 +1,6 @@
 package domain
 
-import akka.dispatch.ProgramEvent
-import explorer.protocol.Configuration
-import protocol.MessageId
+import explorer.protocol.{MessageId, ProgramEvent}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -97,7 +95,7 @@ case class Configuration () {
   }
 
   private[this] def init(parent: Configuration):Unit = {
-    this.orderedEvents = parent.orderedEvents
+    this.orderedEvents = null //parent.orderedEvents //todo
     this.unorderedEvents = new UnorderedEvents(parent.unorderedEvents.getClone)
     this.orderedEvents = new OrderedEvents(parent.orderedEvents.getClone)
     this.executionGraph  = parent.executionGraph
@@ -130,7 +128,7 @@ case class Configuration () {
         predec.add(this.labelMap.find(_._2 == d).get._1)
       }
 
-      this.enabledDep+=(eventIdT -> Set(predec))
+      //this.enabledDep+=(eventIdT -> Set(predec)) //todo
       this.unorderedEvents.addEvent(eventIdT)
     }
 

@@ -1,11 +1,11 @@
 package scheduler.pos
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
-import akka.dispatch.state.Messages.MessageId
+import akka.dispatch.TestingDispatcher.AddedEvents
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, InternalProgramEvent}
 import akka.dispatch.util.{CmdLineUtils, FileUtils}
 import com.typesafe.scalalogging.LazyLogging
-import protocol.{AddedEvents, DispatchMessageRequest, TerminateRequest}
+import explorer.protocol.{DispatchMessageRequest, MessageId, TerminateRequest}
 
 class DPOSActor(dposOptions: DPOSOptions) extends Actor with LazyLogging {
   private val dposScheduler = new DPOSScheduler(dposOptions)
@@ -13,7 +13,7 @@ class DPOSActor(dposOptions: DPOSOptions) extends Actor with LazyLogging {
 
   override def receive: Receive = {
 
-    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
+    case AddedEvents(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       //logger.debug("Added messages: " + predecessors.toList.sortBy(_._1))
 
       dposScheduler.addNewMessages(events, predecessors)

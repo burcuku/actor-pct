@@ -1,7 +1,6 @@
 package scheduler.pctcp.bm
 
-import protocol.MessageId
-
+import explorer.protocol.MessageId
 import scala.collection.mutable
 
 class Chain {

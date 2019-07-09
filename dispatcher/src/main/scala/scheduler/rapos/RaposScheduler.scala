@@ -1,9 +1,9 @@
 package scheduler.rapos
 
 
-import akka.dispatch.{MessageSent, ProgramEvent}
+import akka.dispatch.{MessageSent, InternalProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
-import protocol.MessageId
+import explorer.protocol.MessageId
 import scheduler.Scheduler
 
 import scala.collection.mutable
@@ -19,7 +19,7 @@ class RaposScheduler(options: RaposOptions) extends Scheduler with LazyLogging {
   private var toDelay: mutable.ListBuffer[MessageId] = new mutable.ListBuffer[MessageId]() // enabled but not in scheduled
   private var schedulable: mutable.ListBuffer[MessageId] = new mutable.ListBuffer[MessageId]() // schedulable
 
-  private var messages: mutable.Map[MessageId, ProgramEvent] = new mutable.HashMap[MessageId, ProgramEvent]()
+  private var messages: mutable.Map[MessageId, InternalProgramEvent] = new mutable.HashMap[MessageId, InternalProgramEvent]()
   private var processed: List[MessageId] = List(0)
   private var preds: Map[MessageId, Set[MessageId]] = Map()
 
@@ -28,7 +28,7 @@ class RaposScheduler(options: RaposOptions) extends Scheduler with LazyLogging {
   private var maxNumAvailableMsgs = 0 // for stats
 
 
-  def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
+  def addNewMessages(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     predecessors.keySet.foreach(msg => preds = preds + (msg -> predecessors(msg)))
 
     events.filter(_._2.isInstanceOf[MessageSent]).foreach( e => { //for now, only messages sent are considered
@@ -41,7 +41,7 @@ class RaposScheduler(options: RaposOptions) extends Scheduler with LazyLogging {
   }
 
   // for now, implemented only for MessageSent events
-  def isIndependentToAll(id: protocol.MessageId, ids: ListBuffer[protocol.MessageId]): Boolean =
+  def isIndependentToAll(id: MessageId, ids: ListBuffer[MessageId]): Boolean =
     ids.forall(i => messages(i).asInstanceOf[MessageSent].receiver != messages(id).asInstanceOf[MessageSent].receiver)
 
   def scheduleNextMessage: Option[MessageId] = {
@@ -108,7 +108,7 @@ class RaposScheduler(options: RaposOptions) extends Scheduler with LazyLogging {
 
   private def isIndependent(m: MessageId): Boolean = scheduled.forall(e => !areRacy(e, m))
 
-  private def areRacy(m1: MessageId, m2: MessageId): Boolean = ProgramEvent.areRacyEvents(messages(m1), messages(m2))
+  private def areRacy(m1: MessageId, m2: MessageId): Boolean = InternalProgramEvent.areRacyEvents(messages(m1), messages(m2))
 
   private def schedule(eventId: MessageId): MessageId = {
     schedule += eventId

@@ -6,8 +6,8 @@ object DispatcherUtils {
   val dispatcherConfigFile: String = "dispatcher.conf"
 
   private val systemActorPaths = Set("", "user", "system")
-  private val pctActorNames = Set("DispatcherHelperActor", "PCTCPActor", "TaPCTCPActor",
-    "POSActor", "DPOSActor", "RandomWalkActor", "RaposActor")
+  private val systemActorNames = Set("DispatcherHelperActor", "PCTCPActor", "TaPCTCPActor",
+    "POSActor", "DPOSActor", "RandomWalkActor", "RaposActor", "DispatcherTCPClientActor", "DispatcherTCPInvoker")
 
   /**
     * @param  actorRef an ActorRef
@@ -15,7 +15,7 @@ object DispatcherUtils {
     */
   def isSystemActor(actorRef: ActorRef): Boolean = actorRef.path.elements match {
     case p :: Nil if systemActorPaths contains p => true
-    case "user" :: p :: Nil if pctActorNames contains p => true
+    case "user" :: p :: Nil if systemActorNames contains p => true
     case "system" :: _ => true
     case _ => false
   }

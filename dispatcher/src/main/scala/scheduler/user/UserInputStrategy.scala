@@ -1,10 +1,10 @@
 package scheduler.user
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.dispatch.{DispatcherInterface, ProgramEvent, SchedulingStrategy}
-import akka.dispatch.state.Messages.MessageId
+import akka.dispatch.TestingDispatcher.AddedEvents
+import akka.dispatch.{DispatcherInterface, InternalProgramEvent, SchedulingStrategy}
 import akka.dispatch.util.CmdLineUtils
-import protocol._
+import explorer.protocol.{DispatchMessageRequest, InitRequest, MessageId, Response, TerminateRequest}
 import scheduler.user.UserInputActor.GetInput
 
 object UserInputStrategy extends SchedulingStrategy {
@@ -42,8 +42,6 @@ class UserInputActor extends Actor {
       choice match {
         case ("next", messageId) =>
           DispatcherInterface.forwardRequest(DispatchMessageRequest(messageId))
-        case ("drop", messageId) =>
-          DispatcherInterface.forwardRequest(DropMessageRequest(messageId))
         case ("quit", _) =>
           DispatcherInterface.forwardRequest(TerminateRequest)
         case _ =>
@@ -51,13 +49,9 @@ class UserInputActor extends Actor {
           self ! GetInput
       }
 
-    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
+    case AddedEvents(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       println("Predecessors: ") // MessagePredecessors(predecessors: Map[MessageId, Set[MessageId]])
       predecessors.foreach(x => println(x._1 + " -> " + x._2))
-      self ! GetInput // get next user input once the response is received
-
-    case ErrorResponse(errorMsg) =>
-      CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, errorMsg)
       self ! GetInput // get next user input once the response is received
 
     case _ =>

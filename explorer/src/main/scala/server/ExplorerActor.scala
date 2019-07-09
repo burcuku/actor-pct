@@ -1,10 +1,8 @@
 package server
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
-import akka.dispatch.util.CmdLineUtils
-import controller.{StateManager, StateManagerdfs}
-import protocol.{AddedEvents, DispatchMessageRequest, MessageId, TerminateRequest}
+import controller.StateManagerdfs
+import explorer.protocol.{NewEvents, DispatchMessageRequest, MessageId, ProgramEvent}
 
 class ExplorerActor(server: ActorRef) extends Actor with ActorLogging {
 
@@ -16,14 +14,12 @@ class ExplorerActor(server: ActorRef) extends Actor with ActorLogging {
 
 
   override def receive: Receive = {
-    // will receive Configuration(str: String) and send CommandRequest to the server
-
-
     // jatin: imo it should receive a set of events
-    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
-      CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Added messages: " + predecessors.toList.sortBy(_._1))
+    case NewEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
+      println("Explorer Received: " + events)
+      server ! DispatchMessageRequest(1)
 
-      stateManager.addNewMessages(events, predecessors)
+    /*stateManager.addNewMessages(events, predecessors)
       val nextMessage = stateManager.scheduleNextMessage
 
       nextMessage match {
@@ -34,13 +30,10 @@ class ExplorerActor(server: ActorRef) extends Actor with ActorLogging {
           CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "One branch done")
           if(DispatcherOptions.logStats) logStats()
           DispatcherInterface.forwardRequest(TerminateRequest)
-      }
+      }*/
 
-
-    case _ =>  // server ! Initiate
+    case _ =>
   }
-
-
 }
 
 object ExplorerActor {

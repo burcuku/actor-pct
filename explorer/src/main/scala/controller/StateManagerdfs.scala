@@ -1,8 +1,7 @@
 package controller
 
-import akka.dispatch.ProgramEvent
 import domain.Configuration
-import protocol.MessageId
+import explorer.protocol.{MessageId, ProgramEvent}
 
 import scala.collection.mutable
 

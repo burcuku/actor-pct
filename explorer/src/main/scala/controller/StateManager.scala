@@ -1,7 +1,6 @@
 package controller
 
-import akka.dispatch.ProgramEvent
-import protocol.MessageId
+import explorer.protocol.{MessageId, ProgramEvent}
 
 
 trait StateManager {

@@ -1,8 +1,8 @@
 package scheduler.pos
 
-import akka.dispatch.{MessageSent, ProgramEvent}
+import akka.dispatch.{MessageSent, InternalProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
-import protocol.MessageId
+import explorer.protocol.MessageId
 import scheduler.Scheduler
 
 import scala.collection.mutable
@@ -16,7 +16,7 @@ class POSScheduler(options: POSOptions) extends Scheduler with LazyLogging {
 
   private var maxNumAvailableMsgs = 0 // for stats
   // for checking the number of concurrently enabled messages
-  private var messages: mutable.Map[MessageId, ProgramEvent] = new mutable.HashMap[MessageId, ProgramEvent]()
+  private var messages: mutable.Map[MessageId, InternalProgramEvent] = new mutable.HashMap[MessageId, InternalProgramEvent]()
   private var processed: List[MessageId] = List(0)
   private var preds: Map[MessageId, Set[MessageId]] = Map()
 
@@ -24,7 +24,7 @@ class POSScheduler(options: POSOptions) extends Scheduler with LazyLogging {
   private var schedule: ListBuffer[MessageId] = ListBuffer(0)
 
 
-  def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
+  def addNewMessages(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     predecessors.keySet.foreach(msg => preds = preds + (msg -> predecessors(msg)))
 
     events.filter(_._2.isInstanceOf[MessageSent]).foreach( e => { //for now, only messages sent are considered
@@ -49,13 +49,13 @@ class POSScheduler(options: POSOptions) extends Scheduler with LazyLogging {
     * @return true if racy to a concurrently enabled event
     */
   private def isRacy(message: MessageId): Boolean =
-    priorityMap.values.exists(e => e != message && ProgramEvent.areRacyEvents(messages(e), messages(message)))
+    priorityMap.values.exists(e => e != message && InternalProgramEvent.areRacyEvents(messages(e), messages(message)))
 
 
   private def schedule(eventId: MessageId): MessageId = {
 
     val toUpdate: mutable.ListBuffer[Double] = new mutable.ListBuffer[Double]() // sort to determinize the order
-      priorityMap.keySet.toList.sorted.foreach(e => if(e != eventId && ProgramEvent.areRacyEvents(messages(priorityMap(e)), messages(eventId))) toUpdate.append(e))
+      priorityMap.keySet.toList.sorted.foreach(e => if(e != eventId && InternalProgramEvent.areRacyEvents(messages(priorityMap(e)), messages(eventId))) toUpdate.append(e))
 
     toUpdate.foreach(e => {
       val msgId = priorityMap.remove(e).get

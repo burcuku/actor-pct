@@ -3,7 +3,7 @@ package scheduler.pos
 import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch.util.CmdLineUtils
 import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
-import protocol.{InitRequest, Response}
+import explorer.protocol.{InitRequest, Response}
 import scheduler.{NOOptions, SchedulerOptions}
 
 class POSStrategy(options: SchedulerOptions) extends SchedulingStrategy {

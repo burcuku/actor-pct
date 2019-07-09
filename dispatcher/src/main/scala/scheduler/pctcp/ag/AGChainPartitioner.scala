@@ -2,8 +2,8 @@ package scheduler.pctcp.ag
 
 import akka.dispatch.util.{CmdLineUtils, IdGenerator}
 import com.typesafe.scalalogging.LazyLogging
+import explorer.protocol.MessageId
 import pctcp.ChainId
-import protocol.MessageId
 
 
 //todo consider updating List to Vector

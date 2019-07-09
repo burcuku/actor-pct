@@ -3,10 +3,13 @@ package server
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, Props}
+import akka.io.Tcp.Write
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
+import explorer.protocol.Requests.RequestJsonFormat
+import explorer.protocol.Responses.ResponseJsonFormat
 import spray.json._
-import explorer.protocol.{CommandRequest, CommandResponse, Terminate}
+import explorer.protocol.{InitRequest, NewEvents, Request, Response}
 
 /**
   * The dispatcher process connects to this server to:
@@ -46,12 +49,12 @@ class ExplorerServer(serverConfig: ServerConfig) extends Actor {
       requestHandler ! AddClient(connection)
 
     // receives from the Explorer
-    case request: CommandRequest =>
+    case request: Request =>
       println(Console.BLUE + "Server received request: " + request + Console.RESET)
       requestHandler ! request
 
     // receives from the Dispatcher
-    case response: CommandResponse =>
+    case response: Response =>
       println(Console.BLUE + "Server received response: " + response + Console.RESET)
       responseHandler ! response
   }
@@ -72,16 +75,17 @@ class CommandRequestHandlerActor extends Actor {
     case AddClient(c) =>
       println(Console.BLUE + "Dispatcher process client set to: " + c + Console.RESET)
       dispatcher = c
+      dispatcher ! Write(ByteString(RequestJsonFormat.write(InitRequest).prettyPrint))
 
-    case queryRequest: CommandRequest =>
+    case commandRequest: Request =>
       // todo send request to dispatcher (via network)
-      /*if(!dispatcher.equals(Actor.noSender)) {
-        println(Console.BLUE + "Request to be sent to the debugger: " + CommandRequestJsonFormat.write(queryRequest).prettyPrint + Console.RESET)
-        dispatcher ! Write(ByteString(CommandRequestJsonFormat.write(queryRequest).prettyPrint))
+      if(!dispatcher.equals(Actor.noSender)) {
+        println(Console.BLUE + "Request to be sent to the debugger: " + RequestJsonFormat.write(commandRequest).prettyPrint + Console.RESET)
+        dispatcher ! Write(ByteString(RequestJsonFormat.write(commandRequest).prettyPrint))
       } else {
         println(Console.RED_B + "Received request before the debugger process connection!")
         println("Request cannot be sent!" + Console.RESET)
-      }*/
+      }
 
     case _ =>
   }
@@ -101,14 +105,15 @@ class CommandResponseHandlerActor(explorer: ActorRef) extends Actor {
   def receive: Receive = {
     case Received(data) =>
       // todo decode the network data and send to explorer
-      /*try {
+      try {
         // The received data must be a QueryResponse
-        val response = QueryResponseJsonFormat.read(data.utf8String.parseJson)
-        println(Console.BLUE + "Response to be sent to user: " + response + Console.RESET)
-        uiServer.foreach(_ ! response)
+        val response = ResponseJsonFormat.read(data.utf8String.parseJson)
+        println(Console.BLUE + "Response to be sent to explorer: " + response + Console.RESET)
+        val pairs = response.events.map(e => (e.id, e.programEvent))
+        explorer ! NewEvents(pairs, response.predecessors)
       } catch {
         case e: Exception => println(Console.BLUE + "Server could not parse the response: " + data.utf8String + Console.RESET)
-      }*/
+      }
 
     case PeerClosed => println("Debugger server - Peer closed")
     case _ =>

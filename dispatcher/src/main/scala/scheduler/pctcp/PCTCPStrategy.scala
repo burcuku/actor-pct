@@ -3,8 +3,8 @@ package scheduler.pctcp
 import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch.util.CmdLineUtils
 import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
+import explorer.protocol.{InitRequest, Response}
 import pctcp.PCTCPOptions
-import protocol.{InitRequest, Response}
 import scheduler.{NOOptions, SchedulerOptions}
 
 class PCTCPStrategy(options: SchedulerOptions) extends SchedulingStrategy {

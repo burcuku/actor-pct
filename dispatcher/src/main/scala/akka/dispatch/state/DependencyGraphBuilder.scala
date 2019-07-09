@@ -1,7 +1,8 @@
 package akka.dispatch.state
 
 import akka.actor.ActorRef
-import akka.dispatch.state.Messages.{Message, MessageId}
+import akka.dispatch.TestingDispatcher.Message
+import explorer.protocol.MessageId
 
 /**
   * Maintains the dependencies between the messages of a program

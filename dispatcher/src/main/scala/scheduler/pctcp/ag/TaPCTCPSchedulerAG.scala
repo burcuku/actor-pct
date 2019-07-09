@@ -3,8 +3,8 @@ package scheduler.pctcp.ag
 import akka.dispatch._
 import akka.dispatch.util.CmdLineUtils
 import com.typesafe.scalalogging.LazyLogging
+import explorer.protocol.MessageId
 import pctcp.{ChainId, TaPCTCPOptions}
-import protocol.MessageId
 import scheduler.pctcp.PCTCPScheduler
 import scheduler.pctcp.ag.AGChainPartitioner.Node
 
@@ -31,12 +31,12 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
   private var schedule: ListBuffer[MessageId] = ListBuffer(0)
   private var maxNumAvailableChains = 0 // for stats
 
-  private var allEvents: mutable.Map[MessageId, ProgramEvent] = mutable.Map()
+  private var allEvents: mutable.Map[MessageId, InternalProgramEvent] = mutable.Map()
 
   private var currentNumRacyEvents = 0
   private var racyEvents: ListBuffer[MessageId] = ListBuffer(0)
 
-  def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
+  def addNewMessages(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     events.filter(_._2.isInstanceOf[MessageSent]).foreach(e => allEvents.put(e._1, e._2)) //for now, only messages sent are considered
     predecessors.toList.sortBy(_._1).foreach(m => partitioner.insert(Node(m._1, m._2)))
 
@@ -75,13 +75,13 @@ class TaPCTCPSchedulerAG(options: TaPCTCPOptions) extends PCTCPScheduler with La
     */
   private def isRacy(message: MessageId): Boolean =
     partitioner.getChains.map(c => next(c.id)).filter(e => e.isDefined)
-      .exists(m => m.get.id != message && ProgramEvent.areRacyEvents(allEvents(m.get.id), allEvents(message)))
+      .exists(m => m.get.id != message && InternalProgramEvent.areRacyEvents(allEvents(m.get.id), allEvents(message)))
 
   /**
     * @return true if marked as a racy event in the configuration
     */
   private def isMarkedRacy(message: MessageId): Boolean = {
-    val content = ProgramEvent.getContent(allEvents(message))
+    val content = InternalProgramEvent.getContent(allEvents(message))
     options.racyMessages.exists(str => content.contains(str))
   }
 

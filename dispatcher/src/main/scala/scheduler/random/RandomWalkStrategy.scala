@@ -3,7 +3,7 @@ package scheduler.random
 import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch.util.CmdLineUtils
 import akka.dispatch.{DispatcherInterface, DispatcherOptions, SchedulingStrategy}
-import protocol._
+import explorer.protocol.{InitRequest, Response}
 import scheduler.{NOOptions, SchedulerOptions}
 
 /**

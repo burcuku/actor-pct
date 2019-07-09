@@ -1,11 +1,11 @@
 package akka.dispatch.state
 
 import akka.actor.{ActorRef, Cell}
-import akka.dispatch.TestingDispatcher.printLog
+import akka.dispatch.TestingDispatcher.{Message, printLog}
 import akka.dispatch._
 import akka.dispatch.state.DependencyGraphBuilder.Dependency
-import akka.dispatch.state.Messages.{Message, MessageId}
 import akka.dispatch.util.{CmdLineUtils, ReflectionUtils}
+import explorer.protocol.MessageId
 
 class ExecutionState {
 
@@ -30,7 +30,7 @@ class ExecutionState {
     * @param list of events generated in response to a message
     * @return set of dependencies (i.e. predecessors in the sense of causality of the messages) of each generated message
     */
-  def calculateDependencies(list: List[(MessageId, ProgramEvent)]): Map[MessageId, Set[MessageId]] = list match {
+  def calculateDependencies(list: List[(MessageId, InternalProgramEvent)]): Map[MessageId, Set[MessageId]] = list match {
     case Nil => Map()
     case x :: xs if x._2.isInstanceOf[MessageReceived] =>
       val receivedMessage = getMessage(list.head._1) // the first event is always of type MESSAGE_RECEIVED
@@ -46,7 +46,7 @@ class ExecutionState {
   def calculateDependencies(received: Message, sent: List[Message], created: List[ActorRef]): Map[MessageId, Set[MessageId]] =
     dependencyGraphBuilder.calculateDependencies(received, sent, created).map(pair => (pair._1, pair._2.map(dep => dep._2)))
 
-  def updateState(event: ProgramEvent): Any = event match {
+  def updateState(event: InternalProgramEvent): Any = event match {
 
     case MessageSent(receiver, invocation) =>
       val messageId = messages.addMessage(receiver.self, invocation)
@@ -70,7 +70,7 @@ class ExecutionState {
       actorMessagesMap.removeActor(receiver)
   }
 
-  def collectEvents(): List[(MessageId, ProgramEvent)] = eventBuffer.consumeEvents
+  def collectEvents(): List[(MessageId, InternalProgramEvent)] = eventBuffer.consumeEvents
 
   def existsActor(actor: ActorRef): Option[Cell] = actorMessagesMap.hasActor(actor)
 
@@ -103,7 +103,7 @@ class ExecutionState {
 
   def getAllPredecessorsWithDepType: Set[(MessageId, Set[Dependency])] = messages.getAllMessageIds.map(id => (id, dependencyGraphBuilder.predecessors(id)))
 
-  def getAllEvents: List[ProgramEvent] = eventBuffer.getAllEvents
+  def getAllEvents: List[InternalProgramEvent] = eventBuffer.getAllEvents
 
   val random = scala.util.Random
 }

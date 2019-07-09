@@ -2,11 +2,11 @@ package akka.dispatch.state
 
 import akka.actor.ActorRef
 import akka.dispatch.Envelope
+import akka.dispatch.TestingDispatcher.Message
 import akka.dispatch.util.{CmdLineUtils, IdGenerator}
+import explorer.protocol.MessageId
 
 object Messages {
-  type MessageId = Long
-  case class Message(id: MessageId, receiver: ActorRef, envelope: Envelope)
   private val idGenerator = new IdGenerator(0)
   val NO_MSG = -1
 }

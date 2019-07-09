@@ -1,7 +1,7 @@
 package akka.dispatch.state
 
 import akka.actor.{ActorRef, Cell}
-import akka.dispatch.state.Messages.MessageId
+import explorer.protocol.MessageId
 
 import scala.collection.{Set, mutable}
 

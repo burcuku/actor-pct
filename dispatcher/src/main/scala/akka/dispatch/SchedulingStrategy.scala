@@ -1,7 +1,7 @@
 package akka.dispatch
 
 import akka.actor.ActorSystem
-import protocol._
+import explorer.protocol.Response
 
 trait SchedulingStrategy {
   def setUp(system: ActorSystem): Unit

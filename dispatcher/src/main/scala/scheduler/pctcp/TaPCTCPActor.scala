@@ -1,11 +1,12 @@
 package scheduler.pctcp
 
 import akka.actor.{Actor, Props}
+import akka.dispatch.TestingDispatcher.AddedEvents
 import akka.dispatch.util.{CmdLineUtils, FileUtils}
-import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, InternalProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
+import explorer.protocol.{DispatchMessageRequest, MessageId, TerminateRequest}
 import pctcp.TaPCTCPOptions
-import protocol.{AddedEvents, DispatchMessageRequest, MessageId, TerminateRequest}
 import scheduler.pctcp.ag.TaPCTCPSchedulerAG
 
 class TaPCTCPActor(options: TaPCTCPOptions) extends Actor with LazyLogging {
@@ -14,11 +15,11 @@ class TaPCTCPActor(options: TaPCTCPOptions) extends Actor with LazyLogging {
 
   override def receive: Receive = {
     // The actor receives the created messages and their predecessors at each step of the computation
-    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
+    case AddedEvents(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Added messages: " + predecessors.toList.sortBy(_._1))
 
       //println("Added messages: " + predecessors.toList.sortBy(_._1))
-      scheduler.addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]])
+      scheduler.addNewMessages(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]])
       val nextMessage = scheduler.scheduleNextMessage
 
       nextMessage match {

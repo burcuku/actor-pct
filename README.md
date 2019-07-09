@@ -23,10 +23,16 @@ sbt publishM2  // to use in the Maven projects
 ```
 
 
-Run the server:
+Run the server using the following command. After this step, the Tcp server for the explorer should be bound.
 
 ```
 sbt explorer/run
 ```
 
-  
+Run the application (make sure that the application's dispatcher is configured to listen from the network in its "dispatcher.conf" file). 
+When run, the application dispatcher should connect to the server and process the requests.
+
+```
+cd apps/pingpong
+sbt clean compile run
+```

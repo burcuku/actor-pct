@@ -50,7 +50,7 @@ object DispatcherOptions {
       FiniteDuration(1, TimeUnit.MILLISECONDS)
     }
 
-  // CMDLINE, RANDOM, PCTCP, taPCTCP, POS, dPOS, RAPOS
+  // CMDLINE, RANDOM, PCTCP, taPCTCP, POS, dPOS, RAPOS, NETWORK
   val scheduler: String =
     if(config.hasPath(schedulerPath)) config.getString(schedulerPath)
     else {

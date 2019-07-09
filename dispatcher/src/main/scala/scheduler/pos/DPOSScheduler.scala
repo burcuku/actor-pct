@@ -1,9 +1,9 @@
 package scheduler.pos
 
 import akka.dispatch.util.CmdLineUtils
-import akka.dispatch.{MessageSent, ProgramEvent}
+import akka.dispatch.{MessageSent, InternalProgramEvent}
 import com.typesafe.scalalogging.LazyLogging
-import protocol.MessageId
+import explorer.protocol.MessageId
 import scheduler.Scheduler
 
 import scala.collection.mutable
@@ -20,7 +20,7 @@ class DPOSScheduler(options: DPOSOptions) extends Scheduler with LazyLogging {
 
   private var maxNumAvailableMsgs = 0 // for stats
   // for checking the number of concurrently enabled messages
-  private var messages: mutable.Map[MessageId, ProgramEvent] = new mutable.HashMap[MessageId, ProgramEvent]()
+  private var messages: mutable.Map[MessageId, InternalProgramEvent] = new mutable.HashMap[MessageId, InternalProgramEvent]()
   private var processed: List[MessageId] = List(0)
   private var preds: Map[MessageId, Set[MessageId]] = Map()
 
@@ -30,7 +30,7 @@ class DPOSScheduler(options: DPOSOptions) extends Scheduler with LazyLogging {
   private var currentNumRacyEvents = 0
   private var racyEvents: ListBuffer[MessageId] = ListBuffer(0)
 
-  def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
+  def addNewMessages(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     predecessors.keySet.foreach(msg => preds = preds + (msg -> predecessors(msg)))
 
     events.filter(_._2.isInstanceOf[MessageSent]).foreach( e => { //for now, only messages sent are considered
@@ -54,7 +54,7 @@ class DPOSScheduler(options: DPOSOptions) extends Scheduler with LazyLogging {
     * @return true if racy to a concurrently enabled event
     */
   private def isRacy(message: MessageId): Boolean =
-    priorityMap.values.exists(e => e != message && ProgramEvent.areRacyEvents(messages(e), messages(message)))
+    priorityMap.values.exists(e => e != message && InternalProgramEvent.areRacyEvents(messages(e), messages(message)))
 
 
   private def schedule(maxKey: Double, eventId: MessageId): MessageId = {

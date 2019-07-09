@@ -1,10 +1,10 @@
 package scheduler.random
 
 import akka.actor.{Actor, Props}
-import akka.dispatch.{DispatcherInterface, DispatcherOptions, ProgramEvent}
-import akka.dispatch.state.Messages.MessageId
+import akka.dispatch.TestingDispatcher.AddedEvents
+import akka.dispatch.{DispatcherInterface, DispatcherOptions, InternalProgramEvent}
 import akka.dispatch.util.{CmdLineUtils, FileUtils}
-import protocol.{AddedEvents, DispatchMessageRequest, ErrorResponse, TerminateRequest}
+import explorer.protocol.{DispatchMessageRequest, MessageId, TerminateRequest}
 
 // Receives user inputs and displays the received responses
 class RandomWalkActor(randomSeed: Long) extends Actor {
@@ -17,7 +17,7 @@ class RandomWalkActor(randomSeed: Long) extends Actor {
 
   override def receive: Receive = {
 
-    case AddedEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
+    case AddedEvents(events: List[(MessageId, InternalProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Received response: " + predecessors)
       predecessors.keySet.foreach(msg => preds = preds + (msg -> predecessors(msg)))
       messages = messages union predecessors.keySet
@@ -32,8 +32,6 @@ class RandomWalkActor(randomSeed: Long) extends Actor {
           //CmdLineUtils.printLog(CmdLineUtils.LOG_DEBUG, "Quiting. ")
           DispatcherInterface.forwardRequest(TerminateRequest)
       }
-
-    case err: ErrorResponse => println("Error: " + err)
     case _ => CmdLineUtils.printLog(CmdLineUtils.LOG_ERROR, "Undefined message sent to the random executor.")
   }
 
