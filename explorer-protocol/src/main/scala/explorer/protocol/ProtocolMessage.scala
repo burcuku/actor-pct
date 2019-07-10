@@ -20,11 +20,14 @@ object Responses extends SprayJsonSupport with DefaultJsonProtocol {
   implicit object ResponseJsonFormat extends RootJsonFormat[Response] {
 
     def write(c: Response): JsObject = c match {
-      case CommandResponse(events: List[Event], predecessors: Map[MessageId, Set[MessageId]]) => JsObject(
-        "responseType" -> JsString(ADDED_EVENTS_RESPONSE),
-        "events" -> JsArray(events.map(e => Events.EventJsonFormat.write(e)))
-        //,"predecessors" -> predecessors.toJson //todo
-      )
+      case CommandResponse(events: List[Event], predecessors: Map[MessageId, Set[MessageId]]) => {
+        val predsWithStringKeys = predecessors.keySet.map(k => (k.toString, predecessors.get(k))).toMap
+        JsObject(
+          "responseType" -> JsString(ADDED_EVENTS_RESPONSE),
+          "events" -> JsArray(events.map(e => Events.EventJsonFormat.write(e))),
+          "predecessors" -> predsWithStringKeys.toJson
+        )
+      }
       case _ => serializationError("Command Response cannot be read")
     }
 
@@ -33,10 +36,9 @@ object Responses extends SprayJsonSupport with DefaultJsonProtocol {
       fields("responseType") match {
         case JsString(Responses.ADDED_EVENTS_RESPONSE) => {
           val events = fields("events").asInstanceOf[JsArray].elements.map(EventJsonFormat.read).toList
-          CommandResponse(events,
-            //  fields("predecessors").asInstanceOf[JSMap]
-            Map() //todo
-          )
+          val predsWithStringKeys = fields("predecessors").convertTo[Map[String, Set[MessageId]]]
+          val preds = predsWithStringKeys.keySet.map(k => (k.toLong, predsWithStringKeys(k))).toMap
+          CommandResponse(events, preds)
         }
         case _ => deserializationError("Command Response expected")
       }
