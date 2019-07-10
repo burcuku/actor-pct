@@ -1,9 +1,9 @@
 package scheduler.pctcp.ag
 
-import akka.dispatch.DummyInternalProgramEvent$
+import akka.dispatch.DummyInternalProgramEvent
+import explorer.protocol.MessageId
 import org.scalatest.{FlatSpec, Matchers}
 import pctcp.PCTCPOptions
-import protocol.MessageId
 import scheduler.pctcp.ag.AGChainPartitioner.{Chain, Node}
 
 class PCTSchedulerAGTest extends FlatSpec with Matchers {
@@ -25,7 +25,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   // add element
   it should "add msg into empty chain/partitioning" in {
-    ps.addNewMessages(List((0, DummyInternalProgramEvent$)), Map(elems.head -> preds.head))
+    ps.addNewMessages(List((0, DummyInternalProgramEvent)), Map(elems.head -> preds.head))
 
     // chain with id 0 is created
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()))))
@@ -41,7 +41,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   // add element
   it should "append msg into a chain/partitioning with a single element" in {
-    ps.addNewMessages(List((1, DummyInternalProgramEvent$)), Map(elems(1) -> preds(1)))
+    ps.addNewMessages(List((1, DummyInternalProgramEvent)), Map(elems(1) -> preds(1)))
 
     // inserted into chain with id 0
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)))))
@@ -51,7 +51,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
 
   // add element
   it should "add a concurrent msg and have two chains/priorities" in {
-    ps.addNewMessages(List((2, DummyInternalProgramEvent$)), Map(elems(2) -> preds(2)))
+    ps.addNewMessages(List((2, DummyInternalProgramEvent)), Map(elems(2) -> preds(2)))
 
     // added a chain with id 1
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)))), Chain(1, List(Node(2, Set(0)))))
@@ -71,7 +71,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "append a msg to one of the possible two chains (with id 0 in BSet1)" in {
-    ps.addNewMessages(List((3, DummyInternalProgramEvent$)), Map(elems(3) -> preds(3)))
+    ps.addNewMessages(List((3, DummyInternalProgramEvent)), Map(elems(3) -> preds(3)))
 
     // inserted into chain with id 0
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)))))
@@ -79,7 +79,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "append a msg to a chain (with id 1 in BSet2)" in {
-    ps.addNewMessages(List((4, DummyInternalProgramEvent$)), Map(elems(4) -> preds(4)))
+    ps.addNewMessages(List((4, DummyInternalProgramEvent)), Map(elems(4) -> preds(4)))
 
     // inserted into chain with id 1
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)), Node(4, Set(2)))))
@@ -87,7 +87,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "add a concurrent msg to a new chain (with id 2 in BSet2)" in {
-    ps.addNewMessages(List((5, DummyInternalProgramEvent$)), Map(elems(5) -> preds(5)))
+    ps.addNewMessages(List((5, DummyInternalProgramEvent)), Map(elems(5) -> preds(5)))
 
     // inserted into chain with id 2
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)), Node(4, Set(2)))),
@@ -111,7 +111,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
   }
 
   it should "append a msg to a chain (with id 2 in BSet2)" in {
-    ps.addNewMessages(List((6, DummyInternalProgramEvent$)), Map(elems(6) -> preds(6)))
+    ps.addNewMessages(List((6, DummyInternalProgramEvent)), Map(elems(6) -> preds(6)))
 
     // inserted into chain with id 2
     ps.getChains shouldBe List(Chain(0, List(Node(0, Set()), Node(1, Set(0)), Node(3, Set(0, 1)))), Chain(1, List(Node(2, Set(0)), Node(4, Set(2)))),
@@ -179,7 +179,7 @@ class PCTSchedulerAGTest extends FlatSpec with Matchers {
     ps2.next(0) shouldBe Some(nodes(1))
 
     // add a new message to chain2
-    ps2.addNewMessages(List((16, DummyInternalProgramEvent$)), Map(16.asInstanceOf[MessageId] -> Set(6.asInstanceOf[MessageId])))
+    ps2.addNewMessages(List((16, DummyInternalProgramEvent)), Map(16.asInstanceOf[MessageId] -> Set(6.asInstanceOf[MessageId])))
 
     // now, the current chain is chain2
     ps2.getCurrentChain shouldBe Some(2)

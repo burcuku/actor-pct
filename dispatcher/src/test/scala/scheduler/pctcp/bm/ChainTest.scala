@@ -1,7 +1,6 @@
 package scheduler.pctcp.bm
 
 import org.scalatest.{FlatSpec, Matchers}
-import protocol.Message
 
 class ChainTest extends FlatSpec with Matchers {
 

@@ -21,7 +21,7 @@ case class MessageReceived(receiver: Cell, id: MessageId, msg: Envelope) extends
 case class MessageDropped(receiver: Cell, id: MessageId, msg: Envelope) extends InternalProgramEvent
 
 /** As the initial event to be sent and also to be used in tests **/
-case object DummyInternalProgramEvent$ extends InternalProgramEvent
+case object DummyInternalProgramEvent extends InternalProgramEvent
 
 object InternalProgramEvent {
   def areRacyEvents(e1: InternalProgramEvent, e2: InternalProgramEvent): Boolean = !e1.equals(e2) && getActor(e1) == getActor(e2)
