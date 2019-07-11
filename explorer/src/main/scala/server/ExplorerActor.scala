@@ -2,7 +2,7 @@ package server
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import controller.StateManagerdfs
-import explorer.protocol.{NewEvents, DispatchMessageRequest, MessageId, ProgramEvent}
+import explorer.protocol.{DispatchMessageRequest, MessageId, NewEvents, ProgramEvent, TerminateRequest}
 
 class ExplorerActor(server: ActorRef) extends Actor with ActorLogging {
 
@@ -17,20 +17,24 @@ class ExplorerActor(server: ActorRef) extends Actor with ActorLogging {
     // jatin: imo it should receive a set of events
     case NewEvents(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) =>
       println("Explorer Received: " + events)
-      server ! DispatchMessageRequest(1)
+      println("Predecessors: " + predecessors)
 
-    /*stateManager.addNewMessages(events, predecessors)
+      //    server ! DispatchMessageRequest(1)
+
+      stateManager.addNewMessages(events, predecessors)
       val nextMessage = stateManager.scheduleNextMessage
+
+      System.exit(0)
+
 
       nextMessage match {
         case Some(id) =>
-          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "Selected message: " + id)
-          DispatcherInterface.forwardRequest(DispatchMessageRequest(id))
+          println("Selected message: " + id)
+          server ! DispatchMessageRequest(id)
         case None =>
-          CmdLineUtils.printLog(CmdLineUtils.LOG_INFO, "One branch done")
-          if(DispatcherOptions.logStats) logStats()
-          DispatcherInterface.forwardRequest(TerminateRequest)
-      }*/
+          println("One branch done")
+          server! TerminateRequest
+      }
 
     case _ =>
   }

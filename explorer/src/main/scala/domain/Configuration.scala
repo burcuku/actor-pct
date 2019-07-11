@@ -13,7 +13,7 @@ import scala.collection.mutable.ListBuffer
 case class Configuration () {
 
 
-  type EventId = Int //todo:  change this to whatever is unique
+  type EventId = String //todo:  change this to whatever is unique
 
   var executionGraph: Map[EventId, Set[EventId]] = Map() //immutable by default
 
@@ -25,14 +25,7 @@ case class Configuration () {
   var isMaximal: Boolean = false
   var isFinal: Boolean = false
 
-  case class UnorderedEvents() {
-
-    private var events: mutable.Queue[EventId] = mutable.Queue() //mutable by definition
-
-    def this(events: mutable.Queue[EventId]) = {
-      this()
-      this.events = events
-    }
+  class UnorderedEvents(val events: mutable.Queue[EventId] = mutable.Queue()) {
 
     def addEvent(newEvent: EventId): Unit = {
         events.enqueue(newEvent)
@@ -43,6 +36,7 @@ case class Configuration () {
     }
 
     def popEvent: EventId = {
+      assert(events.nonEmpty, "Trying to pop an empty unordered event")
       events.dequeue()
     }
 
@@ -57,21 +51,14 @@ case class Configuration () {
 
   }
 
-  case class OrderedEvents() {
-
-    private var events: ListBuffer[EventId] = ListBuffer() //mutable by definition
-
-
-    def this(events: ListBuffer[EventId]) {
-      this()
-      this.events = events
-    }
+  class OrderedEvents(val events : ListBuffer[EventId] = ListBuffer()) {
 
     def addEvent(eventId: EventId, pos: Int): Unit = {
       events.insert(pos, eventId)
     }
 
     def removeHead: EventId = {
+      assert(events.nonEmpty, "Trying to pop an empty Ordered Event")
       events.remove(0)
     }
 
@@ -86,16 +73,29 @@ case class Configuration () {
     def getEvent: EventId = events.head
   }
 
-  var unorderedEvents: UnorderedEvents =  UnorderedEvents()
+  var unorderedEvents: UnorderedEvents = new UnorderedEvents()
 
-  var orderedEvents: OrderedEvents = OrderedEvents()
+  var orderedEvents: OrderedEvents = new OrderedEvents()
 
+//  var tempCounter: Int = 0
   private def getEventId(e: ProgramEvent): EventId = {
-    0
+    //TODO
+//    tempCounter+=1
+//    tempCounter
+
+    e.toString
+  }
+
+  private def getNextEvent : Option[EventId] = {
+    if(!unorderedEvents.isEmpty)
+      Option[EventId](this.unorderedEvents.getEvent)
+    else if(orderedEvents.size!=0)
+      Option[EventId](orderedEvents.getEvent)
+    else
+      Option.empty[EventId]
   }
 
   private[this] def init(parent: Configuration):Unit = {
-    this.orderedEvents = null //parent.orderedEvents //todo
     this.unorderedEvents = new UnorderedEvents(parent.unorderedEvents.getClone)
     this.orderedEvents = new OrderedEvents(parent.orderedEvents.getClone)
     this.executionGraph  = parent.executionGraph
@@ -104,52 +104,67 @@ case class Configuration () {
 
   def this(parent: Configuration, pos:Int) {
     this()
-    this.init(parent)
-    this.orderedEvents.addEvent(this.unorderedEvents.popEvent, pos)
-    this.enabledDep = parent.enabledDep
+    init(parent)
+    orderedEvents.addEvent(unorderedEvents.popEvent, pos)
+    enabledDep = parent.enabledDep
+  }
+
+  def popSched(): Unit = {
+    if(!unorderedEvents.isEmpty)
+      unorderedEvents.popEvent
+    else {
+      orderedEvents.removeHead
+    }
   }
 
   def this(parent: Configuration,  events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]) {
     this()
-    this.init(parent)
+    init(parent)
 
-    val eventId: EventId = parent.unorderedEvents.getEvent
-    this.executionGraph += (eventId -> parent.enabledDep(eventId))
-
-    this.enabledDep = parent.enabledDep
-    this.enabledDep-=eventId
-    for(e <- events) {
-      val eventIdT: EventId = getEventId(e._2)
-      this.labelMap +=(eventIdT -> e._1)
-
-      val predec: mutable.Set[EventId] = mutable.Set[EventId]()
-
-      for(d<-predecessors(e._1)) {
-        predec.add(this.labelMap.find(_._2 == d).get._1)
-      }
-
-      //this.enabledDep+=(eventIdT -> Set(predec)) //todo
-      this.unorderedEvents.addEvent(eventIdT)
+    val eventSched: Option[EventId] = parent.getNextEvent
+    eventSched match {
+      case Some(eventId) =>
+        executionGraph += (eventId -> parent.enabledDep(eventId))
+        enabledDep = parent.enabledDep
+        enabledDep-=eventId
+        popSched()
+      case None =>
+        println("Dummy Initial Parent")
     }
 
-    if(!this.unorderedEvents.isEmpty)
-      this.unorderedEvents.popEvent
-    else
-      this.orderedEvents.removeHead
+    events.foreach(e => {
+      val eventIdT: EventId = getEventId(e._2)
+      labelMap += (eventIdT -> e._1)
 
-    this.isMaximal = true
-    this.isFinal = this.unorderedEvents.isEmpty && (this.orderedEvents.size==0)
+      var predec: Set[EventId] = Set[EventId]()
+      predecessors(e._1).foreach(d => predec += labelMap.find(_._2 == d).get._1)
+
+      enabledDep += (eventIdT -> predec)
+      unorderedEvents.addEvent(eventIdT)
+    }
+    )
+
+    isMaximal = true
+    isFinal = unorderedEvents.isEmpty && (orderedEvents.size==0)
 
   }
 
   def schedule(): Option[MessageId] = {
+    getNextEvent match  {
+      case Some(id) =>
+        Option[MessageId](this.labelMap(id))
+      case None =>
+        Option.empty[MessageId]
+    }
 
-    if(!this.unorderedEvents.isEmpty)
-      Option[MessageId](this.labelMap(this.unorderedEvents.getEvent))
-    else if(this.orderedEvents.size!=0)
-      Option[MessageId](this.labelMap(this.orderedEvents.getEvent))
-    else
-      Option.empty[MessageId]
+  }
+
+  def makeInit(messageId: MessageId, eventId: EventId): Unit = {
+    isFinal = false
+    isMaximal = true
+    unorderedEvents = new UnorderedEvents(mutable.Queue(eventId))
+    labelMap += (eventId->messageId)
+    enabledDep+=(eventId->Set())
   }
 
 

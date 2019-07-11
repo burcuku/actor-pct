@@ -10,8 +10,12 @@ class ConfigurationManager {
 
   val cacheManager: CacheManager = new CacheManager()
 
+//  val eventManager: Map[String, Int] = Map[String, Int]()
+
   def getInitialConf: Configuration = {
-    Configuration() //todo
+    val initConf: Configuration = Configuration() //todo
+    initConf.makeInit(0, "Init Message")
+    initConf
   }
 
   def getNextMessage(configuration: Configuration): Option[MessageId]= {

@@ -21,10 +21,7 @@ class StateManagerdfs extends StateManager {
     val newConfs: List[Configuration] = configurationManager.getNext(fringe.top, events, predecessors)
 
     fringe.pop()
-
-    for(c <- newConfs) {
-      fringe.push(c)
-    }
+    newConfs.foreach(c => fringe.push(c))
 
   }
 
