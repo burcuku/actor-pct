@@ -10,7 +10,7 @@ class CacheManager {
 
   private val parentConf: mutable.Map[Configuration, Configuration] = mutable.Map()
 
-  private[this] def propagateAndStore(configuration: Configuration): Unit = {
+  private def propagateAndStore(configuration: Configuration): Unit = {
 
     if(configuration.isMaximal){
       //todo: store configuration depending on caching structure

@@ -30,52 +30,34 @@ class StateManagerdfsTest extends FlatSpec with Matchers {
   }
 
   it should "handle the case of additional events and should emit them properly)" in {
+
     val stateManagerdfs: StateManagerdfs = new StateManagerdfs
 
     stateManagerdfs.addNewMessages(eventList.toList, predecessors)
 
     var nextM: Option[MessageId] = stateManagerdfs.scheduleNextMessage
     stateManagerdfs.addNewMessages(List(), Map())
-    println(nextM.get)
     assert(nextM.isDefined && nextM.get == 2)
 
     nextM = stateManagerdfs.scheduleNextMessage
     stateManagerdfs.addNewMessages(List(), Map())
-    println(nextM.get)
     assert(nextM.isDefined && nextM.get == 1)
 //
     nextM = stateManagerdfs.scheduleNextMessage
     assert(nextM.isEmpty)
     stateManagerdfs.addNewMessages(List(), Map())
 
-
     nextM = stateManagerdfs.scheduleNextMessage
-    println(nextM.get)
     assert(nextM.isDefined && nextM.get == 1)
     stateManagerdfs.addNewMessages(List(), Map())
 
-
     nextM = stateManagerdfs.scheduleNextMessage
-    println(nextM.get)
     assert(nextM.isDefined && nextM.get == 2)
     stateManagerdfs.addNewMessages(List(), Map())
 
     nextM = stateManagerdfs.scheduleNextMessage
     assert(nextM.isEmpty)
     stateManagerdfs.addNewMessages(List(), Map())
-//
-//    nextM = stateManagerdfs.scheduleNextMessage
-//    assert(nextM.isDefined && nextM.get == 1)
-//    stateManagerdfs.addNewMessages(List(), Map())
-//
-//    nextM = stateManagerdfs.scheduleNextMessage
-//    assert(nextM.isDefined && nextM.get == 2)
-//    stateManagerdfs.addNewMessages(List(), Map())
-//
-//    nextM = stateManagerdfs.scheduleNextMessage
-//    assert(nextM.isEmpty)
-//    stateManagerdfs.addNewMessages(List(), Map())
-
 
   }
 

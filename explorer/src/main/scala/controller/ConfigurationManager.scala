@@ -28,6 +28,6 @@ class ConfigurationManager(val depth: Int) {
 
     val children : List[Configuration]  =  parent.getChildren(events, predecessors, depth)
     cacheManager.track(parent, children)
-    return  children
+    return children
   }
 }

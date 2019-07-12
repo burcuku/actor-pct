@@ -17,7 +17,6 @@ case class Configuration () {
 
   var executionGraph: Map[EventId, Set[EventId]] = Map() //immutable by default
 
-
   var enabledDep : Map[EventId, Set[EventId]] = Map() // opt: Make this linear(1)
 
   var labelMap : Map[EventId, MessageId] = Map() //opt: Make this linear(2)
@@ -47,7 +46,6 @@ case class Configuration () {
     def getClone: mutable.Queue[EventId] = {
       events.clone()
     }
-
 
   }
 
@@ -135,6 +133,7 @@ case class Configuration () {
 
     events.foreach(e => {
       val eventIdT: EventId = getEventId(e._2)
+      assert(!labelMap.exists(_._1 == eventIdT), "Two equal events in the same schedule!")
       labelMap += (eventIdT -> e._1)
 
       var predec: Set[EventId] = Set[EventId]()
