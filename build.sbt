@@ -34,6 +34,7 @@ lazy val explorer = (project in file("./explorer"))
     settings,
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor" % "2.4.14",
+      "org.scalatest" %% "scalatest" % "3.0.0" % "test",
       "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.0"
     )
   ).dependsOn(explorerProtocol)

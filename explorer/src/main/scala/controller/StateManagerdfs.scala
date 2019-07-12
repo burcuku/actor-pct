@@ -6,10 +6,10 @@ import explorer.protocol.{MessageId, ProgramEvent}
 import scala.collection.mutable
 
 // define the search heuristic here
-class StateManagerdfs extends StateManager {
+class StateManagerdfs(val depth: Int = 1) extends StateManager {
 
 
-  private val configurationManager = new ConfigurationManager()
+  private val configurationManager = new ConfigurationManager(depth)
 
   private val fringe: mutable.ArrayStack[Configuration] = mutable.ArrayStack(configurationManager.getInitialConf)
 
@@ -20,11 +20,13 @@ class StateManagerdfs extends StateManager {
   def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     val newConfs: List[Configuration] = configurationManager.getNext(fringe.top, events, predecessors)
 
+    println("Before POP: ", fringe.size)
+
+    assert(newConfs.size <= depth+1)
+    fringe.foreach(c=> println(c.toString))
     fringe.pop()
     newConfs.foreach(c => fringe.push(c))
 
   }
-
-
 
 }

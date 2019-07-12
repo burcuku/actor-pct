@@ -95,6 +95,7 @@ case class Configuration () {
       Option.empty[EventId]
   }
 
+
   private[this] def init(parent: Configuration):Unit = {
     this.unorderedEvents = new UnorderedEvents(parent.unorderedEvents.getClone)
     this.orderedEvents = new OrderedEvents(parent.orderedEvents.getClone)
@@ -168,4 +169,34 @@ case class Configuration () {
   }
 
 
+  def getChildren(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]], depth: Int) : List[Configuration] = {
+
+    if(isFinal)
+      return List[Configuration]()
+
+    val children: ListBuffer[Configuration] = new ListBuffer[Configuration]()
+
+    children.append(new Configuration(this, events, predecessors))
+
+    if (!unorderedEvents.isEmpty && orderedEvents.size < depth) {
+      for(i <- 0 to orderedEvents.size) {
+        children.prepend(new Configuration(this, i))
+      }
+    }
+
+    children.toList
+  }
+
+  override def toString: String = {
+    var s: String = ""
+    s+="\nexecGraph: "
+    s+= executionGraph.toString()
+    s+="\nunorderedEvents"
+    s+=unorderedEvents.events.toString()
+    s+="\norderedEvents"
+    s+=orderedEvents.events.toString()
+    s+="\nlabelMap:: "
+    s+=labelMap.toString()
+    s
+  }
 }
