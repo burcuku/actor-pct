@@ -179,7 +179,9 @@ case class Configuration () {
     children.append(new Configuration(this, events, predecessors))
 
     if (!unorderedEvents.isEmpty && orderedEvents.size < depth) {
-      for(i <- 0 to orderedEvents.size) {
+      var initIndex: Int = if(unorderedEvents.events.size==1) 1 else 0
+
+      for(i <- initIndex to orderedEvents.size) {
         children.prepend(new Configuration(this, i))
       }
     }

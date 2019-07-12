@@ -18,15 +18,16 @@ class ConfigurationManager(val depth: Int) {
   }
 
   def getNextMessage(configuration: Configuration): Option[MessageId]= {
-//    if (cacheManager.isExplored(configuration))
-//      Option.empty[MessageId]
-//    else
+    if (cacheManager.isExplored(configuration))
+      Option.empty[MessageId]
+    else
       configuration.schedule()
   }
 
   def getNext(parent: Configuration, events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): List[Configuration] = {
 
-    parent.getChildren(events, predecessors, depth)
-
+    val children : List[Configuration]  =  parent.getChildren(events, predecessors, depth)
+    cacheManager.track(parent, children)
+    return  children
   }
 }

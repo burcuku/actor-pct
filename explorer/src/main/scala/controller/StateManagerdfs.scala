@@ -20,8 +20,6 @@ class StateManagerdfs(val depth: Int = 1) extends StateManager {
   def addNewMessages(events: List[(MessageId, ProgramEvent)], predecessors: Map[MessageId, Set[MessageId]]): Unit = {
     val newConfs: List[Configuration] = configurationManager.getNext(fringe.top, events, predecessors)
 
-    println("Before POP: ", fringe.size)
-
     assert(newConfs.size <= depth+1)
     fringe.foreach(c=> println(c.toString))
     fringe.pop()
